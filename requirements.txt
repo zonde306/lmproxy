@@ -1,0 +1,6 @@
+blacksheep
+uvicorn
+google-genai
+google-auth
+google-cloud-aiplatform
+aiohttp
