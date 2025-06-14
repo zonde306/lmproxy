@@ -1,3 +1,4 @@
+import json
 import typing
 import logging
 import schemas.middleware
@@ -15,35 +16,42 @@ class Engine:
         self.middlewares = utils.loader.create_from_config(middlewares)
         self.scheduler = scheduler.Scheduler()
     
-    async def generate(self, request: dict, headers: dict, chat: bool) -> schemas.response.Response | str:
+    async def generate(self, request: dict, headers: dict, chat: bool) -> schemas.response.Response | typing.AsyncIterable[str]:
         try:
             for middleware in self.middlewares:
                 result = await middleware.process_request(request, headers, chat)
-                if isinstance(result, schemas.response.Response):
-                    return result
+                if resp := self.result_to_response(result):
+                    return resp
             
             response = await self.scheduler.generate(request, headers, chat)
             if isinstance(response, dict):
                 for middleware in self.middlewares:
                     result = await middleware.process_response(request, response, headers, chat)
-                    if isinstance(result, schemas.response.Response):
-                        return result
-            elif isinstance(response, typing.AsyncGenerator[str]):
+                    if resp := self.result_to_response(result):
+                        return resp
+            elif isinstance(response, typing.AsyncIterable):
                 return self.warpped_response(response, headers, chat, response)
             else:
-                logger.warning(f"Unknown response: {response}")
-                return response
+                logger.warning(f"Unhandled response: {response}")
+                return self.result_to_response(response)
 
         except schemas.response.ErrorResponse as e:
             return e
     
     async def warpped_response(self, request: dict, headers: dict, chat : bool,
-                               generator: typing.AsyncGenerator[str]) -> typing.AsyncGenerator[str]:
+                               generator: typing.AsyncIterable[str]) -> typing.AsyncIterable[str]:
         async for response in generator:
             for middleware in self.middlewares:
                 result = await middleware.process_stream_response(request, response, headers, chat)
-                if isinstance(result, str):
-                    response = result
+                if res := self.result_to_response(result):
+                    response = res
                     break
             
             yield response
+    
+    def result_to_response(self, result: typing.Any) -> schemas.response.Response:
+        if isinstance(result, schemas.response.Response):
+            return result
+        if isinstance(result, (dict, list)):
+            return schemas.response.Response(json.dumps(result, separators=(',', ':')))
+        return result

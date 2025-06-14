@@ -1,8 +1,8 @@
 import typing
 
 class Response:
-    def __init__(self, body : str | dict | bytes | typing.AsyncGenerator,
-                 status_code : int, headers : dict[str, str] = {}):
+    def __init__(self, body : str | dict | bytes | list | typing.AsyncGenerator,
+                 status_code : int = 200, headers : dict[str, str] = {}):
         self.status_code = status_code
         self.headers = headers
         self.body = body
