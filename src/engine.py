@@ -51,7 +51,16 @@ class Engine:
     
     def result_to_response(self, result: typing.Any) -> schemas.response.Response:
         if isinstance(result, schemas.response.Response):
+            if isinstance(result.body, (dict, list)):
+                result.body = json.dumps(result.body, separators=(',', ':')).encode('utf-8')
+                result.headers['Content-Type'] = 'application/json; charset=utf-8'
             return result
+        
         if isinstance(result, (dict, list)):
-            return schemas.response.Response(json.dumps(result, separators=(',', ':')))
+            return schemas.response.Response(
+                json.dumps(result, separators=(',', ':')),
+                200,
+                {'Content-Type': 'application/json; charset=utf-8'}
+            )
+        
         return result
