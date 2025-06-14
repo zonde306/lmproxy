@@ -1,6 +1,9 @@
 class Middleware:
     name : str = ""
 
+    def __init__(self, config: dict):
+        self.config = config
+
     async def process_request(self, request: dict, headers: dict, chat: bool) -> None | dict:
         ...
     
