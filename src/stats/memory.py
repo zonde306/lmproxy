@@ -1,5 +1,7 @@
 from ..schemas import stats
+from ..utils import singleton
 
+@singleton.singleton_thread_safe
 class MemoryStats(stats.Stats):
     def __init__(self):
         self._stats = {}

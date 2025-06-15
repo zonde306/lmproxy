@@ -1,6 +1,5 @@
 import typing
-import random
-import collections
+import itertools
 import schemas.provider
 import schemas.response
 import utils.loader
@@ -9,57 +8,33 @@ import schemas.selector
 
 class Scheduler:
     providers: list[schemas.provider.Provider] = []
-    available_providers : collections.defaultdict[str, set[schemas.provider.Provider]] = collections.defaultdict(set)
-    available_models : list[str] = []
 
     def __init__(self,
                  providers = utils.lazy_settings.LazySettings('PROVIDERS'),
                  selector = utils.lazy_settings.LazySettings('SELECTOR')) -> None:
-        self.providers = utils.loader.create_from_config(providers)
+        self.providers = utils.loader.create_from_dict(providers)
         self.selector = selector
     
     async def generate(self, request: dict, headers: dict, chat: bool) -> dict[str, typing.Any] | typing.AsyncIterable[str]:
         stream = request['stream']
-        model = request['model']
-        selector : schemas.selector.Selector = utils.loader.create(self.selector, self.providers, chat, stream, model)
+        selector : schemas.selector.Selector = utils.loader.create(self.selector, self.providers, chat, stream)
 
-        provider = selector.select(request, headers)
+        provider = await selector.select(request, headers)
         if provider is None:
             raise schemas.response.ClientError(f'No provider for model {request["model"]}', 404)
         
-        
-        
+        if chat and stream:
+            return provider.stream_chat_completions(request, headers)
+        if chat:
+            return await provider.chat_completions(request, headers)
+        if stream:
+            return provider.stream_completion(request, headers)
+        return await provider.completion(request, headers)
     
     async def models(self, request: dict, headers: dict) -> dict[str, typing.Any]:
-        if self.cache_models:
-            return {
-                "object": "list",
-                "data": { "id": x for x in self.available_models },
-            }
-        
-        for provider in self.providers:
-            models = await provider.models(request, headers)
-            for model in models:
-                if model not in self.available_models:
-                    self.available_models.append(model)
-                self.available_providers[model].add(provider)
-
+        all_models = itertools.chain.from_iterable([await x.models(request, headers) for x in self.providers])
         return {
             "object": "list",
-            "data": { "id": x for x in self.available_models }
+            "data": [{ "id": x, "name": x } for x in all_models ],
         }
     
-    def get_provider(self, model: str) -> schemas.provider.Provider | None:
-        providers = self.available_providers[model]
-        if not providers:
-            return None
-        
-        total = sum([ abs(provider.probability) for provider in providers ])
-        choice = random.randint(0, total)
-        for provider in providers:
-            choice -= abs(provider.probability)
-            if choice <= 0:
-                return provider
-        
-        return None
-        
