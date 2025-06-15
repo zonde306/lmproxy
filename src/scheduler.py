@@ -5,21 +5,29 @@ import schemas.provider
 import schemas.response
 import utils.loader
 import utils.lazy_settings
+import schemas.selector
 
 class Scheduler:
     providers: list[schemas.provider.Provider] = []
     available_providers : collections.defaultdict[str, set[schemas.provider.Provider]] = collections.defaultdict(set)
     available_models : list[str] = []
 
-    def __init__(self, providers = utils.lazy_settings.LazySettings('PROVIDERS')) -> None:
+    def __init__(self,
+                 providers = utils.lazy_settings.LazySettings('PROVIDERS'),
+                 selector = utils.lazy_settings.LazySettings('SELECTOR')) -> None:
         self.providers = utils.loader.create_from_config(providers)
-
+        self.selector = selector
+    
     async def generate(self, request: dict, headers: dict, chat: bool) -> dict[str, typing.Any] | typing.AsyncIterable[str]:
-        provider = self.get_provider(request['model'])
+        stream = request['stream']
+        model = request['model']
+        selector : schemas.selector.Selector = utils.loader.create(self.selector, self.providers, chat, stream, model)
+
+        provider = selector.select(request, headers)
         if provider is None:
             raise schemas.response.ClientError(f'No provider for model {request["model"]}', 404)
         
-        stream = request['stream']
+        
         
     
     async def models(self, request: dict, headers: dict) -> dict[str, typing.Any]:

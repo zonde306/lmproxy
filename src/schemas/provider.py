@@ -4,15 +4,19 @@ import closeai
 class Provider:
     name: str = ""
     probability: int = 100
+    available_models : list[str] = []
 
     def __init__(self, config: dict):
         self.config = config
+        self.name = config.get("name", self.name)
+        self.probability = config.get("probability", self.probability)
+        self.available_models = config.get("models", self.available_models)
 
     def __hash__(self):
         return hash(f'{self.name}:{self.probability}')
 
     async def models(self, request: dict, headers: dict) -> list[str]:
-        ...
+        return self.available_models
     
     async def chat_completions(self, request: dict, headers: dict) -> closeai.ChatCompletion:
         content = ""
