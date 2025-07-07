@@ -1,99 +1,83 @@
+import uuid
 import typing
 import closeai
+import request
+from ..utils import loader
+from ..proxies import noproxy
 
 class Provider:
     name: str = ""
-    probability: int = 100
+    metadata: dict[str, typing.Any]
     available_models : list[str] = []
 
     def __init__(self, config: dict):
         self.config = config
-        self.name = config.get("name", self.name)
-        self.probability = config.get("probability", self.probability)
+        self.name = config.get("name", uuid.uuid1().hex)
+        self.metadata = config.get("metadata", self.metadata)
         self.available_models = config.get("models", self.available_models)
 
-    def __hash__(self):
-        return hash(f'{self.name}:{self.probability}')
+        if proxy := config.get("proxy", None):
+            self.proxy = loader.create(proxy["name"], proxy)
+        else:
+            self.proxy = noproxy.NoProxy()
 
-    async def models(self, request: dict, headers: dict) -> list[str]:
-        return self.available_models
+    def __hash__(self):
+        return hash(f"provider-{self.name}")
+
+    async def models(self, request: request.Request) -> closeai.ModelListResponse:
+        return {
+            "object": "list",
+            "data": [ { "id": x } for x in self.available_models ]
+        }
     
-    async def chat_completions(self, request: dict, headers: dict) -> closeai.ChatCompletion:
+    async def chat_completions(self, request: request.Request) -> closeai.ChatResponse:
         content = ""
-        for chunk in self.stream_chat_completions(request, headers):
-            assert isinstance(chunk, closeai.ChatCompletion)
-            content += chunk.choices[0].message.content or ""
+        for chunk in self.stream_chat_completions(request):
+            assert isinstance(chunk, closeai.ChatResponse)
+            content += chunk["choices"][0]["message"]["content"] or ""
         
-        return closeai.ChatCompletion(
-            id=chunk.id,
-            object="chat.completion",
-            created=chunk.created,
-            model=chunk.model,
-            usage=chunk.usage,
-            choices=[
-                closeai.ChatCompletionChoice(
-                    index=0,
-                    finish_reason=chunk.choices[0].finish_reason,
-                    logprobs=chunk.choices[0].logprobs,
-                    message=closeai.ChatCompletionMessage(
-                        content=content,
-                        role=chunk.choices[0].message.role,
-                        tool_calls=chunk.choices[0].message.tool_calls,
-                    )
-                )
+        return {
+            "id": chunk["id"],
+            "object": "chat.completion",
+            "created": chunk["created"],
+            "model": chunk["model"],
+            "usage": chunk["usage"],
+            "choices": [
+                {
+                    "index": 0,
+                    "finish_reason": chunk["choices"][0]["finish_reason"],
+                    "message": {
+                        "content": chunk["choices"][0]["message"]["content"],
+                        "role": chunk["choices"][0]["message"]["role"],
+                        "tool_calls": chunk["choices"][0]["message"]["tool_calls"],
+                    }
+                }
             ]
-        )
+        }
     
-    async def stream_chat_completions(self, request: dict, headers: dict) -> typing.AsyncIterable[closeai.ChatCompletionChunk]:
-        completion = await self.chat_completions(request, headers)
-        yield closeai.ChatCompletionChunk(
-            id=completion.id,
-            object="chat.completion.chunk",
-            created=completion.created,
-            model=completion.model,
-            usage=completion.usage,
-            choices=[
-                closeai.ChatCompletionChoiceChunk(
-                    index=0,
-                    finish_reason=completion.choices[0].finish_reason,
-                    logprobs=completion.choices[0].logprobs,
-                    delta=closeai.ChatCompletionChoiceDelta(
-                        content=completion.choices[0].message.content,
-                        role=completion.choices[0].message.role,
-                        tool_calls=completion.choices[0].message.tool_calls,
-                    )
-                )
+    async def stream_chat_completions(self, request: request.Request) -> typing.AsyncGenerator[closeai.ChatStreamResponse]:
+        completion = await self.chat_completions(request)
+        yield {
+            "id": completion["id"],
+            "object": "chat.completion",
+            "created": completion["created"],
+            "model": completion["model"],
+            "usage": completion["usage"],
+            "choices": [
+                {
+                    "index": 0,
+                    "finish_reason": completion["choices"][0]["finish_reason"],
+                    "delta": {
+                        "content": completion["choices"][0]["message"]["content"],
+                        "role": completion["choices"][0]["message"]["role"],
+                        "tool_calls": completion["choices"][0]["message"]["tool_calls"],
+                    }
+                }
             ]
-        )
+        }
     
-    async def completion(self, request: dict, headers: dict) -> closeai.Completion:
-        content = ""
-        for chunk in self.stream_completion(request, headers):
-            assert isinstance(chunk, closeai.Completion)
-            content += chunk.choices[0].text
-        
-        return closeai.Completion(
-            id=chunk.id,
-            object="text_completion",
-            created=chunk.created,
-            model=chunk.model,
-            usage=chunk.usage,
-            choices=[
-                closeai.CompletionChoice(
-                    text=content,
-                    finish_reason=chunk.choices[0].finish_reason,
-                    index=chunk.choices[0].index,
-                    logprobs=chunk.choices[0].logprobs,
-                )
-            ]
-        )
-    
-    async def stream_completion(self, request: dict, headers: dict) -> typing.AsyncIterable[closeai.Completion]:
-        completion = await self.chat_completions(request, headers)
-        yield completion
-    
-    async def count_tokens(self, request: dict, headers: dict) -> int | None:
+    async def count_tokens(self, request: request.Request) -> int | None:
         return None
     
-    async def embedding(self, request: dict, headers: dict) -> bytes:
+    async def embedding(self, request: request.Request) -> bytes:
         ...

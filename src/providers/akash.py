@@ -1,9 +1,9 @@
 import json
-import uuid
 import time
 import typing
 from ..schemas import provider
 from ..schemas import closeai
+from ..schemas import request
 import rnet
 
 class AkashProvider(provider.Provider):
@@ -16,8 +16,9 @@ class AkashProvider(provider.Provider):
             referer="https://chat.akash.network/",
             cookie_store=True,
             timeout=600,
+            proxies=await self.proxy.next(),
         )
-
+        
         response = await client.get("https://chat.akash.network/api/auth/session/")
         if response.status != 200:
             raise RuntimeError("Failed to create session")
@@ -28,55 +29,59 @@ class AkashProvider(provider.Provider):
         
         return client
     
-    async def models(self, request: dict, headers: dict) -> list[str]:
+    async def models(self, request: request.Request) -> closeai.ModelListResponse:
         session = await self.create_session()
         response = await session.get("https://chat.akash.network/api/models/")
         if response.status != 200:
             raise RuntimeError("Failed to get models")
         
         data : list[dict] = await response.json()
-        return [ x["id"] for x in data ]
+        self.available_models = [ x["id"] for x in data ]
+        return await super().models(request)
     
-    async def stream_chat_completions(self, request: dict, headers: dict) -> typing.AsyncIterable[closeai.ChatCompletionChunk]:
+    async def stream_chat_completions(self, request: request.Request) -> typing.AsyncGenerator[closeai.ChatStreamResponse]:
         session = await self.create_session()
-        request_id = uuid.uuid4().hex
         
-        async with await session.post("https://chat.akash.network/api/chat", json=request) as response:
+        async with await session.post("https://chat.akash.network/api/chat", json=request.body) as response:
             assert isinstance(response, rnet.Response)
             assert response.status_code.is_success(), f"{response.status_code} {await response.text()}"
             async with response.stream() as streamer:
                 assert isinstance(streamer, rnet.Streamer)
                 async for chunk in streamer:
                     assert isinstance(chunk, bytes)
-                    data = json.loads(chunk[chunk.find(':') + 1:])
+                    data = json.loads(chunk[chunk.find(b':') + 1:])
                     if isinstance(data, str):
-                        yield closeai.ChatCompletionChunk(
-                            id=request_id,
-                            created=time.time(),
-                            model=request['model'],
-                            choices=[
-                                closeai.ChatCompletionChoiceChunk(
-                                    index=0,
-                                    delta=closeai.ChatCompletionChoiceDelta(
-                                        content=data,
-                                        role="assistant",
-                                    )
-                                )
+                        yield {
+                            "id": request.id.hex,
+                            "created": int(time.time()),
+                            "model": request.body["model"],
+                            "object": "chat.completion.chunk",
+                            "choices": [
+                                {
+                                    "index": 0,
+                                    "delta": {
+                                        "content": data,
+                                        "role": "assistant",
+                                    }
+                                }
                             ]
-                        )
+                        }
                 
-                yield closeai.ChatCompletionChunk(
-                    id=request_id,
-                    created=time.time(),
-                    model=request['model'],
-                    choices=[
-                        closeai.ChatCompletionChoiceChunk(
-                            index=0,
-                            finish_reason="stop",
-                            delta=closeai.ChatCompletionChoiceDelta(
-                                role="assistant",
-                            )
-                        )
+                # Send stop signal
+                yield {
+                    "id": request.id.hex,
+                    "created": int(time.time()),
+                    "model": request.body["model"],
+                    "object": "chat.completion.chunk",
+                    "choices": [
+                        {
+                            "index": 0,
+                            "delta": {
+                                "content": "",
+                                "role": "assistant",
+                            },
+                            "finish_reason": "stop",
+                        }
                     ]
-                )
+                }
 

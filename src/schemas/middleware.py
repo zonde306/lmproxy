@@ -1,14 +1,16 @@
+import request
+
 class Middleware:
     name : str = ""
 
     def __init__(self, config: dict):
         self.config = config
 
-    async def process_request(self, request: dict, headers: dict, chat: bool) -> None | dict:
+    async def process_request(self, request: request.Request) -> None | dict:
         ...
     
-    async def process_response(self, request: dict, response: dict, headers: dict, chat: bool) -> None | dict:
+    async def process_response(self, request: request.Request) -> None | dict:
         ...
     
-    async def process_stream_response(self, request: dict, response: str, headers: dict, chat: bool) -> None | str:
+    async def process_response_chunk(self, request: request.Request) -> None | str:
         ...

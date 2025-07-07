@@ -1,4 +1,5 @@
 import abc
+import request
 from . import provider
 
 class Selector(abc.ABC):
@@ -8,7 +9,7 @@ class Selector(abc.ABC):
         self.stream = stream
     
     @abc.abstractmethod
-    async def select(self, request : dict, headers : dict) -> provider.Provider:
+    async def next(self, request: request.Request) -> provider.Provider:
         ...
     
     def get_available_providers(self, model: str) -> list[provider.Provider]:
