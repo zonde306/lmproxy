@@ -34,7 +34,7 @@ class OpenaiProvider(provider.Provider):
                 async for chunk in streamer:
                     assert isinstance(chunk, bytes)
                     buffer += chunk
-                    if buffer.startswith("data:"):
+                    if buffer.startswith(b"data:"):
                         try:
                             data = json.loads(buffer[5:])
                         except json.decoder.JSONDecodeError:
