@@ -39,6 +39,8 @@ class OpenaiProvider(provider.Provider):
                             data = json.loads(buffer[5:])
                         except json.decoder.JSONDecodeError:
                             continue
+                    else:
+                        continue
                     
                     if isinstance(data, dict):
                         data["id"] = request.id.hex
