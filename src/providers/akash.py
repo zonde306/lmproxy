@@ -11,12 +11,14 @@ class AkashProvider(provider.Provider):
         super().__init__(config)
     
     async def create_session(self) -> rnet.Client:
+        proxy = await self.proxy.next()
+        proxy = [ rnet.Proxy.all(**proxy) ] if proxy else None
         client = rnet.Client(
             impersonate=rnet.Impersonate.Chrome136,
             referer="https://chat.akash.network/",
             cookie_store=True,
             timeout=600,
-            proxies=await self.proxy.next(),
+            proxies=proxy,
         )
         
         response = await client.get("https://chat.akash.network/api/auth/session/")

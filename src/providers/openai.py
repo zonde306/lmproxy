@@ -12,10 +12,12 @@ class OpenaiProvider(provider.Provider):
         self.text_completion = config.get('text_completions', None)
     
     async def create_session(self) -> rnet.Client:
+        proxy = await self.proxy.next()
+        proxy = [ rnet.Proxy.all(**proxy) ] if proxy else None
         client = rnet.Client(
             cookie_store=False,
             timeout=600,
-            proxies=await self.proxy.next(),
+            proxies=proxy,
         )
 
         return client
@@ -42,7 +44,15 @@ class OpenaiProvider(provider.Provider):
                         data["id"] = request.id.hex
                         data["model"] = request.body["model"]
                         yield data
-
-
-
     
+    async def chat_completions(self, request: request.Request) -> closeai.ChatResponse:
+        session = await self.create_session()
+
+        async with await session.post(self.chat_completion, json=request.body) as response:
+            assert isinstance(response, rnet.Response)
+            assert response.status_code.is_success(), f"{response.status_code} {await response.text()}"
+            data = await response.json()
+            if isinstance(data, dict):
+                data["id"] = request.id.hex
+                data["model"] = request.body["model"]
+                return data
