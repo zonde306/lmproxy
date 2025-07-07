@@ -16,7 +16,7 @@ class Scheduler:
         self.providers = utils.loader.create_from_dict(providers)
         self.selector = selector
     
-    async def generate(self, request: schemas.request.Request) -> dict[str, typing.Any] | typing.AsyncIterable[str]:
+    async def generate(self, request: schemas.request.Request) -> dict[str, typing.Any] | typing.AsyncIterable[dict[str, typing.Any]]:
         stream = request.body['stream']
         selector : schemas.selector.Selector = utils.loader.create(
             self.selector,

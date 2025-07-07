@@ -1,6 +1,6 @@
-from ..schemas import proxy
+from ..schemas import proxies
 from ..schemas import request
 
-class NoProxy(proxy.Proxies):
-    async def next(self, request: request.Request) -> proxy.Proxy | None:
+class NoProxy(proxies.Proxies):
+    async def next(self, request: request.Request) -> proxies.Proxy | None:
         return None

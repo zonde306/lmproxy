@@ -1,5 +1,4 @@
 import json
-import uuid
 import typing
 import logging
 import schemas.middleware
@@ -43,16 +42,20 @@ class Engine:
             return e
 
     async def warpped_response(
-        self, request: schemas.request.Request, generator: typing.AsyncGenerator[str]
+        self, request: schemas.request.Request, generator: typing.AsyncGenerator[dict]
     ) -> typing.AsyncGenerator[str]:
-        async for response in generator:
+        async for chunk in generator:
             for middleware in self.middlewares:
-                result = await middleware.process_response_chunk(request, response)
+                result = await middleware.process_response_chunk(request, chunk)
                 if res := self.result_to_response(result):
-                    response = res
+                    chunk = res
                     break
 
-            yield response
+            yield chunk
+        
+        if request.body.get("stream"):
+            yield "data: [DONE]"
+
 
     def result_to_response(self, result: typing.Any) -> schemas.response.Response:
         if isinstance(result, schemas.response.Response):

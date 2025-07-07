@@ -2,6 +2,7 @@ import uuid
 import typing
 import closeai
 import request
+from . import proxies
 from ..utils import loader
 from ..proxies import noproxy
 
@@ -9,6 +10,7 @@ class Provider:
     name: str = ""
     metadata: dict[str, typing.Any]
     available_models : list[str] = []
+    proxy: proxies.Proxies = None
 
     def __init__(self, config: dict):
         self.config = config
