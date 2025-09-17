@@ -63,12 +63,24 @@ class AkashWorker(worker.Worker):
         return data
     
     async def generate_image(self, context : context.Context) -> context.Image:
+        payload = {
+            "model": "AkashGen",
+            "messages": [{
+                "role": "user",
+                "content": f"""\
+Prompt: {context.body.get("prompt", "")}
+
+Negative prompt: {context.body.get("negative_prompt", "")}
+""",
+            }]
+        }
+
         async with self.proxy as proxy:
             client = rnet.Client(proxies = rnet.Proxy.all(proxy.proxy) if proxy.proxy else None)
             assert await self.create_session(client), "Akash error"
 
             job_id = None
-            async with client.post("https://chat.akash.network/api/chat/", json=context.body) as response:
+            async with client.post("https://chat.akash.network/api/chat/", json=payload) as response:
                 assert isinstance(response, rnet.Response)
                 async with response.stream() as streamer:
                     assert isinstance(streamer, rnet.Streamer)
