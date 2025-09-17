@@ -45,6 +45,7 @@ class AkashWorker(worker.Worker):
                                 continue
                             
                             data = json.loads(chunks[:chunks.find(":")])
+                            chunks = b""
                             if isinstance(data, str):
                                 yield data
         
