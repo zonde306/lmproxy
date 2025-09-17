@@ -49,7 +49,7 @@ class Router:
         )
     
     async def count_tokens(self, body: dict[str, typing.Any], headers: dict[str, str]) -> context.Response:
-        ...
+        return await self.workers.count_tokens(context.Context(body=body, headers=headers, type="count_tokens"))
     
     async def _process(self, ctx: context.Context, callee: typing.Callable[[context.Context], typing.Any]) -> context.Response:
         ctx.metadata["task_id"] = uuid.uuid4().hex
@@ -76,7 +76,7 @@ class Router:
                     return response
     
     async def _to_response(self, ctx : context.Context, result: typing.Any) -> context.Response | None:
-        if isinstance(result, (str, bytes, list, int)) or inspect.isasyncgen(result):
+        if isinstance(result, (str, bytes, list, int, dict)) or inspect.isasyncgen(result):
             ctx.response = result
             return context.Response(
                 status_code=200,
