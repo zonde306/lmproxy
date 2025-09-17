@@ -9,7 +9,7 @@ import proxies
 class Worker:
     def __init__(self, settings: dict[str, typing.Any], proxies: proxies.ProxyFactory) -> None:
         self.settings = settings
-        self.proxies = proxies
+        self._proxies = proxies
 
     async def models(self) -> list[str]:
         return []
@@ -33,8 +33,8 @@ class Worker:
         raise NotImplementedError
     
     @property
-    def proxy(self):
-        return self.proxies(self.settings.get("proxy", None))
+    def proxies(self):
+        return self._proxies(self.settings.get("proxy", None))
 
 class WorkerManager(Worker):
     def __init__(self, settings: dict[str, typing.Any], proxies: proxies.ProxyFactory) -> None:
