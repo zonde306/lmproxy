@@ -14,19 +14,22 @@ class Worker:
     async def models(self) -> list[str]:
         return []
     
-    async def generate_text(self, context : context.Context) -> str | typing.AsyncGenerator[str | bytes, None]:
+    async def generate_text(self, context : context.Context) -> context.Text:
         raise NotImplementedError
     
-    async def generate_image(self, context : context.Context) -> bytes:
+    async def generate_image(self, context : context.Context) -> context.Image:
         raise NotImplementedError
     
-    async def generate_audio(self, context : context.Context) -> bytes:
+    async def generate_audio(self, context : context.Context) -> context.Audio:
         raise NotImplementedError
     
-    async def generate_embedding(self, context : context.Context) -> list[float]:
+    async def generate_embedding(self, context : context.Context) -> context.Embedding:
         raise NotImplementedError
     
-    async def count_tokens(self, context : context.Context) -> int:
+    async def generate_video(self, context : context.Context) -> context.Video:
+        raise NotImplementedError
+    
+    async def count_tokens(self, context : context.Context) -> context.CountTokens:
         raise NotImplementedError
     
     @property
@@ -65,35 +68,42 @@ class WorkerManager(Worker):
                     models.append(model)
         return models
     
-    async def generate_text(self, context : context.Context) -> str | typing.AsyncIterator[str | bytes, None]:
+    async def generate_text(self, context : context.Context) -> context.Text:
         for worker in self.workers:
             with contextlib.suppress(NotImplementedError, error.WorkerError):
                 return await worker.generate_text(context)
         
         raise error.WorkerError("No avaliable workers")
     
-    async def generate_image(self, context : context.Context) -> bytes:
+    async def generate_image(self, context : context.Context) -> context.Image:
         for worker in self.workers:
             with contextlib.suppress(NotImplementedError, error.WorkerError):
                 return await worker.generate_image(context)
         
         raise error.WorkerError("No avaliable workers")
     
-    async def generate_audio(self, context : context.Context) -> bytes:
+    async def generate_audio(self, context : context.Context) -> context.Audio:
         for worker in self.workers:
             with contextlib.suppress(NotImplementedError, error.WorkerError):
                 return await worker.generate_audio(context)
         
         raise error.WorkerError("No avaliable workers")
     
-    async def generate_embedding(self, context : context.Context) -> list[float]:
+    async def generate_embedding(self, context : context.Context) -> context.Embedding:
         for worker in self.workers:
             with contextlib.suppress(NotImplementedError, error.WorkerError):
                 return await worker.generate_embedding(context)
         
         raise error.WorkerError("No avaliable workers")
     
-    async def count_tokens(self, context):
+    async def generate_video(self, context : context.Context) -> context.Video:
+        for worker in self.workers:
+            with contextlib.suppress(NotImplementedError, error.WorkerError):
+                return await worker.generate_video(context)
+        
+        raise error.WorkerError("No avaliable workers")
+    
+    async def count_tokens(self, context) -> context.CountTokens:
         for worker in self.workers:
             with contextlib.suppress(NotImplementedError, error.WorkerError):
                 return await worker.count_tokens(context)

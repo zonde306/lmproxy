@@ -41,7 +41,16 @@ class Router:
             context.Context(body=body, headers=headers, type="embedding"), 
             self.workers.generate_embedding,
         )
-
+    
+    async def generate_video(self, body: dict[str, typing.Any], headers: dict[str, str]) -> context.Response:
+        return await self._process(
+            context.Context(body=body, headers=headers, type="video"), 
+            self.workers.generate_video,
+        )
+    
+    async def count_tokens(self, body: dict[str, typing.Any], headers: dict[str, str]) -> context.Response:
+        ...
+    
     async def _process(self, ctx: context.Context, callee: typing.Callable[[context.Context], typing.Any]) -> context.Response:
         ctx.metadata["task_id"] = uuid.uuid4().hex
         

@@ -9,7 +9,7 @@ import router
 logger = logging.getLogger(__name__)
 
 app = blacksheep.Application()
-app.add_cors_policy("oldapi", allow_methods="GET,POST,OPTIONS", allow_origins="*")
+app.add_cors_policy("lmproxy", allow_methods="GET,POST,OPTIONS", allow_origins="*")
 
 engine = router.Router()
 
