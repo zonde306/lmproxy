@@ -3,17 +3,18 @@ import uuid
 import inspect
 import context
 import retry
-import middlewares
+import middleware
 import worker
 import proxies
+import error
 
 class Router:
     def __init__(self, settings: dict[str, typing.Any]):
         self.settings = settings
-        self.middleware = middlewares.MiddlewareManager(settings.get("middleware", {}))
+        self.middleware = middleware.MiddlewareManager(settings.get("middleware", {}))
         self.retries = retry.RetryFactory(settings.get("retry", {}), self.middleware)
-        self.proxies = proxies.ProxyFactory(settings.get("proxies", {}))
-        self.workers = worker.WorkerManager(settings.get("workers", {}))
+        self.proxies = proxies.ProxyFactory(settings.get("proxy", {}))
+        self.workers = worker.WorkerManager(settings.get("worker", {}), self.proxies)
     
     async def models(self) -> list[str]:
         return await self.workers.models()
@@ -54,26 +55,29 @@ class Router:
     async def _process(self, ctx: context.Context, callee: typing.Callable[[context.Context], typing.Any]) -> context.Response:
         ctx.metadata["task_id"] = uuid.uuid4().hex
         
-        if not await self.middleware.process_request(ctx):
-            return context.Response(
-                status_code=200,
-                headers=ctx.response_headers,
-                body=ctx.response,
-            )
-        
-        async for attempt in self.retries(ctx):
-            with attempt:
-                response = await self._to_response(ctx, await callee(ctx))
-                
-                if not await self.middleware.process_response(ctx):
-                    return context.Response(
-                        status_code=200,
-                        headers=ctx.response_headers,
-                        body=ctx.response,
-                    )
-
-                if response:
-                    return response
+        try:
+            if not await self.middleware.process_request(ctx):
+                return context.Response(
+                    status_code=200,
+                    headers=ctx.response_headers,
+                    body=ctx.response,
+                )
+            
+            async for attempt in self.retries(ctx):
+                with attempt:
+                    response = await self._to_response(ctx, await callee(ctx))
+                    
+                    if not await self.middleware.process_response(ctx):
+                        return context.Response(
+                            status_code=200,
+                            headers=ctx.response_headers,
+                            body=ctx.response,
+                        )
+                    
+                    if response:
+                        return response
+        except error.TerminationRequest as e:
+            return e.response
     
     async def _to_response(self, ctx : context.Context, result: typing.Any) -> context.Response | None:
         if isinstance(result, (str, bytes, list, int, dict)) or inspect.isasyncgen(result):

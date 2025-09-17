@@ -52,7 +52,7 @@ class WorkerManager(Worker):
                 if cls := loader.get_class(worker):
                     workers.append([100, cls({}, proxies)])
             elif isinstance(worker, dict):
-                if cls := worker.get("class"):
+                if cls := loader.get_class(worker.get("class")):
                     priority = worker.get("priority", 100)
                     workers.append([priority, cls(worker, proxies)])
         

@@ -1,2 +1,3 @@
 #!/bin/bash
-python3 -m uvicorn src.main:app --port 13579
+cd src
+python3 -m uvicorn main:app --port 13579

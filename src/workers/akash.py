@@ -3,26 +3,33 @@ import json
 import typing
 import asyncio
 import rnet
-from .. import worker
-from .. import proxies
-from .. import context
-from .. import error
+import worker
+import proxies
+import context
+import error
 
 class AkashWorker(worker.Worker):
     def __init__(self, settings: dict[str, typing.Any], proxies: proxies.ProxyFactory) -> None:
         super().__init__(settings, proxies)
         self.available_models = settings.get("models", [])
+        self.headers = {
+            "referer": "https://chat.akash.network/",
+        }
     
     async def create_session(self, client: rnet.Client) -> bool:
-        async with client.get("https://chat.akash.network/api/auth/session/") as response:
+        async with await client.get("https://chat.akash.network/api/auth/session/", headers=self.headers) as response:
             data = await response.json()
         return data.get("success", False)
     
     async def models(self) -> list[str]:
         async with self.proxy as proxy:
-            client = rnet.Client(proxies = rnet.Proxy.all(proxy.proxy) if proxy.proxy else None)
+            client = rnet.Client(
+                proxies=[rnet.Proxy.all(proxy.proxy)] if proxy.proxy else None,
+                impersonate=rnet.Impersonate.Chrome137,
+                cookie_store=True
+            )
             assert await self.create_session(client), "Akash error"
-            async with await client.get("https://chat.akash.network/api/models/") as response:
+            async with await client.get("https://chat.akash.network/api/models/", headers=self.headers) as response:
                 self.available_models = [ x["id"] for x in await response.json() if x["available"] ]
             return self.available_models
     
@@ -37,7 +44,7 @@ class AkashWorker(worker.Worker):
                 client = rnet.Client(proxies = rnet.Proxy.all(proxy.proxy) if proxy.proxy else None)
                 assert await self.create_session(client), "Akash error"
                 
-                async with client.post("https://chat.akash.network/api/chat/", json=context.body) as response:
+                async with await client.post("https://chat.akash.network/api/chat/", json=context.body, headers=self.headers) as response:
                     assert isinstance(response, rnet.Response)
                     async with response.stream() as streamer:
                         assert isinstance(streamer, rnet.Streamer)
@@ -76,11 +83,11 @@ Negative prompt: {context.body.get("negative_prompt", "")}
         }
 
         async with self.proxy as proxy:
-            client = rnet.Client(proxies = rnet.Proxy.all(proxy.proxy) if proxy.proxy else None)
+            client = rnet.Client(proxies = [rnet.Proxy.all(proxy.proxy)] if proxy.proxy else None)
             assert await self.create_session(client), "Akash error"
 
             job_id = None
-            async with client.post("https://chat.akash.network/api/chat/", json=payload) as response:
+            async with await client.post("https://chat.akash.network/api/chat/", json=payload, headers=self.headers) as response:
                 assert isinstance(response, rnet.Response)
                 async with response.stream() as streamer:
                     assert isinstance(streamer, rnet.Streamer)
@@ -101,7 +108,7 @@ Negative prompt: {context.body.get("negative_prompt", "")}
                 raise error.WorkerNoAvaliableError("Akash error")
             
             while True:
-                async with client.get(f"https://chat.akash.network/api/image-status/?ids={job_id}") as response:
+                async with await client.get(f"https://chat.akash.network/api/image-status/?ids={job_id}", headers=self.headers) as response:
                     data = await response.json()
                 
                 if data[0].get("status") == "pending":
@@ -110,7 +117,7 @@ Negative prompt: {context.body.get("negative_prompt", "")}
                 
                 if data[0].get("status") == "succeeded":
                     if url := data[0].get("result"):
-                        async with client.get(url) as response:
+                        async with await client.get(url, headers=self.headers) as response:
                             assert isinstance(response, rnet.Response)
                             return ( await response.bytes(), response.headers.get("content-type").decode("utf-8") )
                 

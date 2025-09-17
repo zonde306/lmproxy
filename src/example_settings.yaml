@@ -1,0 +1,25 @@
+
+middleware:
+  middlewares:
+    - class: 'middlewares.authorization.AuthorizationMiddleware'
+      token: '12345'
+
+retry:
+  wait_time: 0
+  max_attempts: 3
+
+worker:
+  workers:
+    - class: 'workers.akash.AkashWorker'
+      priority: 100
+      models:
+        - 'DeepSeek-V3.1'
+        - 'AkashGen'
+
+proxy:
+  local:
+    url: ''
+    initial:
+      - 'socks5://127.0.0.1:1080'
+    retry_delay: 3
+    max_retries: 3

@@ -1,7 +1,7 @@
 import typing
 import asyncio
 import context
-import middlewares
+import middleware
 
 
 class AttemptManager:
@@ -53,7 +53,7 @@ class Retrying:
     def __init__(
         self,
         settings: dict[str, typing.Any],
-        middleware: middlewares.MiddlewareManager,
+        middleware: middleware.MiddlewareManager,
         ctx: context.Context,
     ) -> None:
         self.settings = settings
@@ -81,7 +81,7 @@ class Retrying:
 
 class RetryFactory:
     def __init__(
-        self, settings: dict[str, typing.Any], middleware: middlewares.MiddlewareManager
+        self, settings: dict[str, typing.Any], middleware: middleware.MiddlewareManager
     ) -> None:
         self.settings = settings
         self.middleware = middleware

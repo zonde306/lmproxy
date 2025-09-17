@@ -40,7 +40,7 @@ class MiddlewareManager(Middleware):
                 if middleware := loader.get_class(middleware):
                     middlewares.append([100, middleware()])
             elif isinstance(middleware, dict):
-                if cls := middleware.get("class"):
+                if cls := loader.get_class(middleware.get("class", "")):
                     priority = middleware.get("priority", 100)
                     middlewares.append([priority, cls(middleware)])
         

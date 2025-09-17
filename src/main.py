@@ -5,13 +5,14 @@ import logging
 import inspect
 import blacksheep
 import router
+import conf
 
 logger = logging.getLogger(__name__)
 
 app = blacksheep.Application()
 app.add_cors_policy("lmproxy", allow_methods="GET,POST,OPTIONS", allow_origins="*")
 
-engine = router.Router()
+engine = router.Router(conf.settings)
 
 @blacksheep.get("/v1/models")
 @blacksheep.get("/models")
@@ -35,7 +36,7 @@ async def models(request : blacksheep.Request) -> blacksheep.Response:
 @blacksheep.post("/chat/completions")
 async def chat_completions(request : blacksheep.Request) -> blacksheep.Response:
     payload = await request.json()
-    result = await engine.generate_text(payload, request.headers)
+    result = await engine.generate_text(payload, { k.decode(): v.decode() for k, v in request.headers.items() })
     if inspect.isasyncgen(result.body):
         async def generate():
             async for chunk in result.body:
