@@ -11,32 +11,35 @@ class Router:
     def __init__(self, settings: dict[str, typing.Any]):
         self.settings = settings
         self.middleware = middlewares.MiddlewareManager(settings.get("middleware", {}))
-        self.retry = retry.RetryFactory(settings.get("retry", {}), self.middleware)
+        self.retries = retry.RetryFactory(settings.get("retry", {}), self.middleware)
         self.proxies = proxies.ProxyFactory(settings.get("proxies", {}))
-        self.worker = worker.WorkerManager(settings.get("workers", {}))
+        self.workers = worker.WorkerManager(settings.get("workers", {}))
+    
+    async def models(self) -> list[str]:
+        return await self.workers.models()
     
     async def generate_text(self, body: dict[str, typing.Any], headers: dict[str, str]) -> context.Response:
         return await self._process(
             context.Context(body=body, headers=headers, type="text"), 
-            self.worker.generate_text,
+            self.workers.generate_text,
         )
     
     async def generate_image(self, body: dict[str, typing.Any], headers: dict[str, str]) -> context.Response:
         return await self._process(
             context.Context(body=body, headers=headers, type="image"), 
-            self.worker.generate_image,
+            self.workers.generate_image,
         )
     
     async def generate_audio(self, body: dict[str, typing.Any], headers: dict[str, str]) -> context.Response:
         return await self._process(
             context.Context(body=body, headers=headers, type="audio"), 
-            self.worker.generate_audio,
+            self.workers.generate_audio,
         )
     
     async def generate_embedding(self, body: dict[str, typing.Any], headers: dict[str, str]) -> context.Response:
         return await self._process(
             context.Context(body=body, headers=headers, type="embedding"), 
-            self.worker.generate_embedding,
+            self.workers.generate_embedding,
         )
 
     async def _process(self, ctx: context.Context, callee: typing.Callable[[context.Context], typing.Any]) -> context.Response:
@@ -49,7 +52,7 @@ class Router:
                 body=ctx.response,
             )
         
-        async for attempt in self.retry(ctx):
+        async for attempt in self.retries(ctx):
             with attempt:
                 response = await self._to_response(ctx, await callee(ctx))
                 
