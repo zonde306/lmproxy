@@ -18,6 +18,7 @@ class Worker:
         self._proxies = proxies
         self.available_models: list[str] = settings.get("models", [])
         self.client_args: http_client.ClientOptions = {}
+        self.name = settings.get("name", self.__class__.__name__)
 
     async def models(self) -> list[str]:
         return []
@@ -60,6 +61,12 @@ class Worker:
                 client = rnet.Client(**args)
                 await self._client_created(client)
                 yield client
+    
+    def __str__(self):
+        return f"Worker({self.name})"
+    
+    def __repr__(self):
+        return f"Worker({self.name})"
 
 
 class WorkerManager:

@@ -48,20 +48,40 @@ async def chat_completions(request: blacksheep.Request) -> blacksheep.Response:
         async def generate():
             id = random.randint(0x10000000, 0xFFFFFFFF)
             async for chunk in result.body:
+                delta = {
+                    "role": "assistant"
+                }
+                if chunk[0]:
+                    delta["content"] = chunk[0]
+                if chunk[1]:
+                    delta["reasoning_content"] = chunk[1]
+
                 data = json.dumps(
                     {
                         "id": id,
                         "object": "chat.completion.chunk",
                         "created": int(time.time()),
                         "model": payload.get("model", "unknown"),
-                        "choices": [{"index": 0, "delta": {"content": chunk}}],
+                        "choices": [{
+                            "index": 0,
+                            "delta": delta
+                        }],
                     },
                     ensure_ascii=False,
+                    separators=(",", ":"),
                 )
                 yield f"data: {data}\n\n".encode("utf-8")
             yield b"data: [DONE]\n\n"
 
         return blacksheep.Response(result.status_code, list(result.headers.items()), blacksheep.StreamedContent(b"text/event-stream; charset=utf-8", generate))
+
+    message = {
+        "role": "assistant"
+    }
+    if result.body[0]:
+        message["content"] = result.body[0]
+    if result.body[1]:
+        message["reasoning_content"] = result.body[1]
 
     return blacksheep.Response(
         result.status_code,
@@ -71,6 +91,9 @@ async def chat_completions(request: blacksheep.Request) -> blacksheep.Response:
             "object": "chat.completion",
             "created": int(time.time()),
             "model": payload.get("model", "unknown"),
-            "choices": [{"index": 0, "message": {"content": result.body}}],
+            "choices": [{
+                "index": 0,
+                "message": message
+            }],
         })
     )

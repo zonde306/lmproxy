@@ -89,8 +89,13 @@ class OpenAiWorker(worker.Worker):
                                 for line in buffer.split(b"\n"):
                                     content = line.strip().removeprefix(b"data:")
                                     if content:
+                                        if b"[DONE]" in content:
+                                            break
+                                        
                                         data = json.loads(content.decode(response.encoding or "utf-8"))
-                                        yield data["choices"][0]["delta"]["content"]
+                                        text = data["choices"][0]["delta"].get("content", None)
+                                        reasoning = data["choices"][0]["delta"].get("reasoning_content", None)
+                                        yield [ text, reasoning ]
                                 
                                 buffer = b""
 
@@ -112,7 +117,9 @@ class OpenAiWorker(worker.Worker):
                     url, json=context.body, headers=headers
                 ) as response:
                     data = await response.json()
-                    return data["choices"][0]["message"]["content"]
+                    text = data["choices"][0]["message"].get("content", None)
+                    reasoning = data["choices"][0]["message"].get("reasoning_content", None)
+                    return [ text, reasoning ]
 
     async def to_streaming(self, response: context.Text) -> context.Text:
         task = asyncio.create_task(response)
@@ -125,8 +132,10 @@ class OpenAiWorker(worker.Worker):
         yield task.result()
 
     async def to_no_streaming(self, response: context.Text) -> context.Text:
-        chunks = ""
+        text = ""
+        reasoning = ""
         async for chunk in response:
-            chunks += chunk
+            text += chunk[0] or ""
+            reasoning += chunk[1] or ""
 
-        return chunks
+        return [ text or None, reasoning or None ]

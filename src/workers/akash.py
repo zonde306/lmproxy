@@ -49,7 +49,7 @@ class AkashWorker(worker.Worker):
                                 if content:
                                     data = json.loads(content.decode(response.encoding or "utf-8"))
                                     if isinstance(data, str):
-                                        yield data
+                                        yield [ data, None ]
                             
                             buffer = b""
         
@@ -60,7 +60,7 @@ class AkashWorker(worker.Worker):
         async for chunk in generate():
             data += chunk
         
-        return data
+        return [ data, None ]
     
     async def generate_image(self, context : context.Context) -> context.Image:
         payload = {

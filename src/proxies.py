@@ -1,6 +1,7 @@
 import typing
 import asyncio
 import loader
+import rnet
 
 
 class ProxyError(Exception):
@@ -14,111 +15,98 @@ class ProxyManager:
         self,
         url: str,
         initial: list[str],
-        retry_delay: float = 1.0,
-        max_retries: int = 3,
+        # 注意：这里我们定义一个总的获取超时，而不是重试延迟
+        timeout: float = 10.0,
+        separator: str = "\n",
         *args,
         **kwargs,
     ):
         self.renew_url = url
         self._proxies = list(initial)  # 可用代理池
-        self._lock = asyncio.Lock()  # 并发锁
         self._in_use = set()  # 正在使用的代理
-        self._has_proxies = asyncio.Event()  # 用于通知“现在有可用代理”
-        self._waiters = 0  # 等待者计数（用于调试/限流）
-        self._retry_delay = retry_delay
-        self._max_retries = max_retries
-
-        if self._proxies:
-            self._has_proxies.set()
+        # 使用 Condition 替代 Lock + Event
+        self._condition = asyncio.Condition()
+        self._is_renewing = False  # 防止并发 renew 的标志
+        self._timeout = timeout
+        self._separator = separator
 
     async def renew(self) -> list[str]:
-        """用户需实现此方法"""
-        raise NotImplementedError("请实现 renew 方法")
+        if not self.renew_url:
+            return []
+        
+        client = rnet.Client()
+        async with client.get(self.renew_url) as response:
+            assert isinstance(response, rnet.Response)
+            content = await response.text()
+            return content.split(self._separator)
 
-    async def _wait_for_proxies(self, timeout: float = 30.0):
+    async def _get_or_wait_for_proxy(self) -> str:
         """
-        尝试获取代理，支持重试 + 超时
+        在 Condition 保护下获取代理或等待。
+        此方法会被 asyncio.wait_for 包装以实现超时。
         """
-        retries = 0
-        while True:
-            async with self._lock:
-                # 检查是否有空闲代理
+        async with self._condition:
+            while True:
+                # 1. 检查是否有可用代理
                 available = [p for p in self._proxies if p not in self._in_use]
                 if available:
                     proxy = available[0]
                     self._in_use.add(proxy)
                     return proxy
 
-                # 无空闲 → 尝试 renew（仅限第一个等待者执行，避免并发 renew）
-                if self._waiters == 0:
-                    try:
-                        new_proxies = await self.renew()
-                        if new_proxies:
-                            self._proxies.extend(new_proxies)
-                            self._has_proxies.set()  # 通知其他等待者
-                            # 立即从中分配一个
-                            proxy = new_proxies[0]
-                            self._in_use.add(proxy)
-                            return proxy
-                    except Exception as e:
-                        # renew 失败，继续等待或重试
-                        pass
+                # 2. 没有可用代理，且没有其他任务正在 renew，则由我来 renew
+                if not self._is_renewing:
+                    self._is_renewing = True
+                    # 在锁外执行 I/O 操作 (renew)
+                    # asyncio.create_task 立即返回，不阻塞当前循环
+                    asyncio.create_task(self._renew_and_notify())
 
-            # 如果不是第一次，等待或重试
-            if retries >= self._max_retries:
-                break
+                # 3. 等待通知 (代理被释放或 renew 完成)
+                # self._condition.wait() 会临时释放锁，直到被 notify
+                await self._condition.wait()
 
-            retries += 1
-
-            # 等待“有代理”事件或超时
-            try:
-                await asyncio.wait_for(
-                    self._has_proxies.wait(), timeout=self._retry_delay
-                )
-                # 被唤醒后，下一轮循环会重新检查代理
-                continue
-            except asyncio.TimeoutError:
-                # 重试间隔到了，继续下一轮
-                continue
-
-        # 所有重试用尽，抛出超时异常
-        raise asyncio.TimeoutError(
-            f"等待代理超时（{timeout}s），renew 未能提供有效代理"
-        )
-
-    async def _acquire_proxy(self, timeout: float = 30.0) -> str:
-        """获取一个可用代理，支持等待 + 超时"""
+    async def _renew_and_notify(self):
+        """在后台执行 renew 操作并通知所有等待者。"""
         try:
-            async with self._lock:
-                self._waiters += 1
+            new_proxies = await self.renew()
+        except Exception as e:
+            print(f"Renew failed: {e}")
+            new_proxies = []
 
-            return await asyncio.wait_for(
-                self._wait_for_proxies(timeout=timeout), timeout=timeout
-            )
-        finally:
-            async with self._lock:
-                self._waiters -= 1
-                if self._waiters == 0:
-                    self._has_proxies.clear()  # 没人等了，重置事件
+        async with self._condition:
+            if new_proxies:
+                self._proxies.extend(new_proxies)
+            self._is_renewing = False  # 重置标志
+            self._condition.notify_all()  # 唤醒所有等待的任务
 
     async def _release_proxy(self, proxy: str, discard: bool = False):
-        """释放代理，discard=True 表示从池中移除"""
-        async with self._lock:
+        """释放代理，并通知一个等待者。"""
+        async with self._condition:
             if discard and proxy in self._proxies:
                 self._proxies.remove(proxy)
             self._in_use.discard(proxy)
-            if self._proxies and not self._has_proxies.is_set():
-                self._has_proxies.set()  # 通知等待者
+            # 通知一个等待的任务，可能有代理可用了
+            self._condition.notify()
 
     def __await__(self):
         raise TypeError("必须使用 'async with ProxyManager(...) as proxy'")
 
     async def __aenter__(self):
-        proxy = await self._acquire_proxy()
-        return ProxyContext(self, proxy)
+        try:
+            proxy = await asyncio.wait_for(
+                self._get_or_wait_for_proxy(), timeout=self._timeout
+            )
+            # 返回一个上下文管理器，它将在退出时自动释放代理
+            return ProxyContext(self, proxy)
+        except asyncio.TimeoutError:
+            raise asyncio.TimeoutError(
+                f"获取代理超时，超过 {self._timeout}s"
+            )
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        pass  # 由 ProxyContext 管理
+        # __aenter__ 返回的 ProxyContext 对象会处理代理的释放
+        # 所以这里不需要做任何事
+        pass
 
 
 class ProxyContext:

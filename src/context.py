@@ -1,12 +1,12 @@
 import typing
 import dataclasses
 
-Text = typing.TypeVar("Text", str, typing.AsyncGenerator[str, None])
-Image = typing.TypeVar("Image", bytes, tuple[bytes, str])
-Embedding = typing.TypeVar("Embedding", bound=list[float])
-Audio = typing.TypeVar("Audio", bytes, typing.AsyncGenerator[bytes, None])
-CountTokens = typing.TypeVar("CountTokens", bound=int)
-Video = typing.TypeVar("Audio", bytes, typing.AsyncGenerator[bytes, None])
+Text = typing.TypeVar("Text", tuple[str, str], typing.AsyncGenerator[tuple[str, str], None]) # [content, reasoning]
+Image = typing.TypeVar("Image", bound=tuple[bytes, str]) # [image, mime_type]
+Embedding = typing.TypeVar("Embedding", bound=list[float]) # vector
+Audio = typing.TypeVar("Audio", tuple[bytes, str], typing.AsyncGenerator[tuple[bytes, str], None]) # [audio, mime_type]
+CountTokens = typing.TypeVar("CountTokens", bound=int) # tokens
+Video = typing.TypeVar("Audio", tuple[bytes, str], typing.AsyncGenerator[bytes, None]) # [video, mime_type]
 
 
 @dataclasses.dataclass
