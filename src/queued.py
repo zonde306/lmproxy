@@ -4,10 +4,16 @@ from asyncio import Lock
 from typing import TypeVar
 from collections import deque
 
-Task = TypeVar('Task')
+Task = TypeVar("Task")
+
 
 class WeightedPriorityScheduler:
-    def __init__(self, n_priorities : int, weights : list[int] | None = None, max_wait_seconds : int = 300):
+    def __init__(
+        self,
+        n_priorities: int,
+        weights: list[int] | None = None,
+        max_wait_seconds: int = 300,
+    ):
         """
         :param n_priorities: 优先级数量（1 最高，n 最低）
         :param weights: 各优先级权重列表，如 [5, 3, 2, 1]，长度必须 == n_priorities
@@ -31,7 +37,9 @@ class WeightedPriorityScheduler:
         self.total_processed = 0
 
         # 记录任务入队时间（用于老化）
-        self.enqueue_times = [dict() for _ in range(n_priorities)]  # task_id -> timestamp
+        self.enqueue_times = [
+            dict() for _ in range(n_priorities)
+        ]  # task_id -> timestamp
         self.task_id_counter = 0
         self.task_id_lock = Lock()
 
@@ -66,10 +74,10 @@ class WeightedPriorityScheduler:
 
         # 包装任务：加入入队时间
         wrapped_task = {
-            'id': task_id,
-            'data': task,
-            'enqueue_time': time.time(),
-            'original_priority': priority
+            "id": task_id,
+            "data": task,
+            "enqueue_time": time.time(),
+            "original_priority": priority,
         }
 
         async with self.locks[idx]:
@@ -86,10 +94,10 @@ class WeightedPriorityScheduler:
                 remaining = []
                 while not self.queues[idx].empty():
                     t = self.queues[idx].get()
-                    if current_time - t['enqueue_time'] > self.max_wait_seconds:
+                    if current_time - t["enqueue_time"] > self.max_wait_seconds:
                         # 提升到上一优先级（但不能超过P1）
                         new_idx = max(0, idx - 1)
-                        t['enqueue_time'] = current_time  # 重置等待时间
+                        t["enqueue_time"] = current_time  # 重置等待时间
                         promoted.append((new_idx, t))
                     else:
                         remaining.append(t)
@@ -102,9 +110,9 @@ class WeightedPriorityScheduler:
                 for new_idx, t in promoted:
                     async with self.locks[new_idx]:
                         self.queues[new_idx].put(t)
-                        self.enqueue_times[new_idx][t['id']] = current_time
+                        self.enqueue_times[new_idx][t["id"]] = current_time
                     # 从原队列时间记录中删除
-                    self.enqueue_times[idx].pop(t['id'], None)
+                    self.enqueue_times[idx].pop(t["id"], None)
 
     async def get(self) -> tuple[Task, int]:
         """Worker 获取下一个任务"""
@@ -121,10 +129,10 @@ class WeightedPriorityScheduler:
                 if not self.queues[idx].empty():
                     task = self.queues[idx].get()
                     # 清理 enqueue_times
-                    self.enqueue_times[idx].pop(task['id'], None)
+                    self.enqueue_times[idx].pop(task["id"], None)
                     self.task_counters[idx] += 1
                     self.total_processed += 1
-                    return task['data'], idx + 1  # 返回原始任务数据和优先级
+                    return task["data"], idx + 1  # 返回原始任务数据和优先级
             attempts += 1
 
         return None, None  # 无任务

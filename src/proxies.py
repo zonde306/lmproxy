@@ -5,6 +5,7 @@ import loader
 
 class ProxyError(Exception):
     """在代理使用中抛出此异常，将导致当前代理被丢弃"""
+
     pass
 
 
@@ -133,6 +134,7 @@ class ProxyContext:
         await self.manager._release_proxy(self.proxy, discard=discard)
         return False
 
+
 class DummyProxyManager:
     """
     哑代理管理器，用于禁用代理的场景。
@@ -167,38 +169,38 @@ class DummyProxyContext:
             # 吞掉 ProxyError（因为没有代理可丢弃）
             return True  # 抑制异常
         return False  # 不抑制其他异常
-    
+
     @property
     def proxy(self):
         return None
+
 
 class ProxyFactory:
     def __init__(self, settings: dict[str, typing.Any]):
         self.settings = settings
         self.instance: dict[str, ProxyManager] = {}
-    
+
     def create(self, name: str):
         if not name:
             return DummyProxyManager()
 
         if name in self.instance:
             return self.instance[name]
-        
-        manager : dict[str, typing.Any] = self.settings.get(name)
+
+        manager: dict[str, typing.Any] = self.settings.get(name)
         if not manager:
             raise ValueError(f"未找到代理管理器 '{name}'")
-        
+
         cls = manager.get("class")
         if not cls:
             raise ValueError(f"代理管理器 '{name}' 未指定 class")
-        
+
         cls = loader.get_class(cls)
         if not cls:
             raise ValueError(f"代理管理器 '{name}' 未找到 class '{cls}'")
-        
+
         self.instance[name] = cls(**manager)
         return self.instance[name]
-    
+
     def __call__(self, name: str):
         return self.create(name)
-

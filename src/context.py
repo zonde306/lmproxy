@@ -8,6 +8,7 @@ Audio = typing.TypeVar("Audio", bytes, typing.AsyncGenerator[bytes, None])
 CountTokens = typing.TypeVar("CountTokens", bound=int)
 Video = typing.TypeVar("Audio", bytes, typing.AsyncGenerator[bytes, None])
 
+
 @dataclasses.dataclass
 class Context:
     headers: dict[str, str]
@@ -17,6 +18,7 @@ class Context:
     status_code: int = 200
     response_headers: dict[str, str] = dataclasses.field(default_factory=dict)
     metadata: dict[str, typing.Any] = dataclasses.field(default_factory=dict)
+
 
 @dataclasses.dataclass
 class Response:

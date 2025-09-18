@@ -39,11 +39,11 @@ class AttemptManager:
         # 否则继续下一次迭代（重试）
         await asyncio.sleep(self.retrying.settings.get("wait_time", 0))
         return True  # 吞掉异常，继续循环
-    
+
     @property
     def error(self):
         return self.retrying.error
-    
+
     @property
     def context(self):
         return self.retrying.context
