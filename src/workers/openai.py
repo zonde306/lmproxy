@@ -1,7 +1,6 @@
 import json
 import typing
 import asyncio
-import inspect
 import urllib.parse
 import rnet
 import worker
@@ -35,7 +34,8 @@ class OpenAiWorker(worker.Worker):
             async with self.client() as client:
                 url = urllib.parse.urljoin(self.base_url, "models")
                 async with await client.get(url, headers=headers) as response:
-                    return [x["id"] for x in await response.json()]
+                    data = await response.json()
+                    return [x["id"] for x in data["data"]]
 
     async def generate_text(self, context: context.Context) -> context.Text:
         if context.body.get("model") not in self.available_models:

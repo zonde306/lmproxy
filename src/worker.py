@@ -1,4 +1,6 @@
 import typing
+import asyncio
+import itertools
 import contextlib
 import context
 import loader
@@ -87,15 +89,10 @@ class WorkerManager:
 
     @cache.ttl_cache(300)
     async def models(self) -> list[str]:
-        models = []
-        for worker in self.workers:
-            worker.available_models.clear()
-            for model in await worker.models():
-                if model not in models:
-                    models.append(model)
-                if model not in worker.available_models:
-                    worker.available_models.append(model)
-        return models
+        [ x.available_models.clear() for x in self.workers ]
+        models = await asyncio.gather(*[ x.models() for x in self.workers ])
+        [ x.available_models.extend(models[i]) for i, x in enumerate(self.workers) ]
+        return sorted(set(itertools.chain.from_iterable(models)), key=lambda x: x.lower())
 
     async def generate_text(self, context: context.Context) -> context.Text:
         for worker in self.workers:
