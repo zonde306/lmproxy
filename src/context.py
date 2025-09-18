@@ -14,7 +14,7 @@ class Context:
     headers: dict[str, str]
     body: dict[str, typing.Any]
     type: typing.Literal["text", "image", "audio", "embedding", "video"]
-    response: Text | Image | Embedding | Audio | CountTokens | Video
+    response: Text | Image | Embedding | Audio | CountTokens | Video | None = None
     status_code: int = 200
     response_headers: dict[str, str] = dataclasses.field(default_factory=dict)
     metadata: dict[str, typing.Any] = dataclasses.field(default_factory=dict)

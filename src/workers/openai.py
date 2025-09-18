@@ -77,17 +77,22 @@ class OpenAiWorker(worker.Worker):
                         url, json=body, headers=headers
                     ) as response:
                         assert isinstance(response, rnet.Response)
+                        charset = response.headers.get("content-type").split(";")[1].split("=")[1].decode("utf-8")
                         async with response.stream() as streamer:
                             assert isinstance(streamer, rnet.Streamer)
-                            chunks = b""
+                            buffer = b""
                             async for chunk in streamer:
                                 assert isinstance(chunk, bytes)
-                                chunks += chunk
-                                if not chunks.endswith(b"\n"):
+                                buffer += chunk
+                                if not buffer.endswith(b"\n"):
                                     continue
 
-                                data = json.loads(chunks.removeprefix(b"data:"))
-                                yield data["choices"][0]["delta"]["content"]
+                                for chunk in buffer.split(b"\n"):
+                                    chunk = chunk.strip().removeprefix(b"data:")
+                                    data = json.loads(chunk.decode(charset or "utf-8"))
+                                    yield data["choices"][0]["delta"]["content"]
+                                
+                                buffer = b""
 
         return generate()
 

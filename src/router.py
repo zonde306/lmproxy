@@ -83,7 +83,7 @@ class Router:
                 )
 
             async for attempt in self.retries(ctx):
-                with attempt:
+                async with attempt:
                     response = await self._to_response(ctx, await callee(ctx))
 
                     if not await self.middleware.process_response(ctx):

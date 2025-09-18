@@ -46,10 +46,11 @@ async def chat_completions(request: blacksheep.Request) -> blacksheep.Response:
     if inspect.isasyncgen(result.body):
 
         async def generate():
+            id = random.randint(0x10000000, 0xFFFFFFFF)
             async for chunk in result.body:
                 data = json.dumps(
                     {
-                        "id": random.randint(0x10000000, 0xFFFFFFFF),
+                        "id": id,
                         "object": "chat.completion.chunk",
                         "created": int(time.time()),
                         "model": payload.get("model", "unknown"),
@@ -57,17 +58,19 @@ async def chat_completions(request: blacksheep.Request) -> blacksheep.Response:
                     },
                     ensure_ascii=False,
                 )
-                yield f"data: {data}\n\n"
-            yield "data: [DONE]\n\n"
+                yield f"data: {data}\n\n".encode("utf-8")
+            yield b"data: [DONE]\n\n"
 
-        return blacksheep.StreamedContent("text/event-stream", generate())
+        return blacksheep.Response(result.status_code, list(result.headers.items()), blacksheep.StreamedContent(b"text/event-stream; charset=utf-8", generate))
 
-    return blacksheep.json(
-        {
+    return blacksheep.Response(
+        result.status_code,
+        list(result.headers.items()),
+        blacksheep.JSONContent({
             "id": random.randint(0x10000000, 0xFFFFFFFF),
             "object": "chat.completion",
             "created": int(time.time()),
             "model": payload.get("model", "unknown"),
             "choices": [{"index": 0, "message": {"content": result.body}}],
-        }
+        })
     )
