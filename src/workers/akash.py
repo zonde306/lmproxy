@@ -22,8 +22,8 @@ class AkashWorker(worker.Worker):
     
     async def models(self) -> list[str]:
         async with self.client() as client:
-                async with await client.get("https://chat.akash.network/api/models/", headers=self.headers) as response:
-                    return [ x["id"] for x in await response.json() if x["available"] ]
+            async with await client.get("https://chat.akash.network/api/models/", headers=self.headers) as response:
+                return [ x["id"] for x in await response.json() if x["available"] ]
     
     async def generate_text(self, context : context.Context) -> context.Text:
         if context.body.get("model") not in self.available_models:
