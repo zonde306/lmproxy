@@ -35,7 +35,6 @@ class AkashWorker(worker.Worker):
             async with self.client() as client:
                 async with await client.post("https://chat.akash.network/api/chat/", json=context.body, headers=self.headers) as response:
                     assert isinstance(response, rnet.Response)
-                    charset = response.headers.get("content-type").split(b";")[1].split(b"=")[1].decode("utf-8")
                     async with response.stream() as streamer:
                         assert isinstance(streamer, rnet.Streamer)
                         buffer = b""
@@ -48,8 +47,7 @@ class AkashWorker(worker.Worker):
                             for line in buffer.split(b"\n"):
                                 content = line[line.find(b":")+1:].strip()
                                 if content:
-                                    # 到这里的 content 是 b'{"messageId":"msg-xAhmjlfgb2BbDcSXAHakCWTc"}'
-                                    data = json.loads(content.decode(charset or "utf-8"))
+                                    data = json.loads(content.decode(response.encoding or "utf-8"))
                                     if isinstance(data, str):
                                         yield data
                             
