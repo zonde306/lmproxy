@@ -120,14 +120,20 @@ class WorkerManager:
                     if not inspect.isasyncgen(result):
                         return result
                     
-                    # 等待第一个结果或者异常
-                    first_chunk = await result.__anext__()
+                    try:
+                        # 等待第一个结果或者异常
+                        first_chunk = await result.__anext__()
+                    except StopAsyncIteration:
+                        first_chunk = None
 
-                    # 流式开始时未发生异常，那么中途应该也不会发生
+                    # 流式开始时未发生异常
                     async def continue_generate():
-                        yield first_chunk
-                        async for chunk in result:
-                            yield chunk
+                        if first_chunk is not None:
+                            yield first_chunk
+
+                            # 因为已经发送了第一个块，所以之后的异常无法处理
+                            async for chunk in result:
+                                yield chunk
                     return continue_generate()
 
             raise error.WorkerError("No avaliable workers")
