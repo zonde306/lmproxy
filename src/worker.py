@@ -120,11 +120,8 @@ class WorkerManager:
                     if not inspect.isasyncgen(result):
                         return result
                     
-                    try:
-                        # 等待第一个结果或者异常
-                        first_chunk = await result.__anext__()
-                    except StopAsyncIteration:
-                        first_chunk = None
+                    # 等待第一个结果或者异常
+                    first_chunk = await anext(result, None)
 
                     # 流式开始时未发生异常
                     async def continue_generate():
