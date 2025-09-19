@@ -73,11 +73,8 @@ class OpenAiWorker(worker.Worker):
                     raise error.WorkerOverloadError("No API keys available")
 
                 headers = self.headers.copy()
-                if api_key:
-                    headers["Authorization"] = f"Bearer {api_key}"
-                
                 body = context.payload(self.aliases)
-                body["stream"] = True
+                await self._process_payload(headers, body, api_key, True)
 
                 async with self.client() as client:
                     async with await client.post(
@@ -116,12 +113,9 @@ class OpenAiWorker(worker.Worker):
                 raise error.WorkerOverloadError("No API keys available")
 
             headers = self.headers.copy()
-            if api_key:
-                headers["Authorization"] = f"Bearer {api_key}"
-            
             body = context.payload(self.aliases)
-            body["stream"] = False
-
+            await self._process_payload(headers, body, api_key, False)
+            
             async with self.client() as client:
                 async with await client.post(
                     self.completions_url, json=body, headers=headers
@@ -152,3 +146,13 @@ class OpenAiWorker(worker.Worker):
             reasoning += chunk[1] or ""
 
         return [ text or None, reasoning or None ]
+    
+    async def _process_payload(self,
+            headers: dict[str, str],
+            body: dict[str, typing.Any],
+            api_key: str,
+            streaming: bool,
+        ) -> None:
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        body["stream"] = streaming

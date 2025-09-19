@@ -34,6 +34,14 @@ worker:
         gpt-5-nano: "openai"
         gpt-4o-mini-audio-preview: "openai-audio"
         o4-mini: "openai-reasoning"
+    
+    - class: "workers.LongchatWorker"
+      name: "longchat"
+      priority: 100
+      models:
+        - "longcat-flash"
+        - "longcat-flash-search"
+      api_key: ""
 
 proxy:
   local:
