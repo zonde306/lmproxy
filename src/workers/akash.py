@@ -17,12 +17,17 @@ class AkashWorker(worker.Worker):
     
     async def _client_created(self, client: rnet.Client) -> bool:
         async with await client.get("https://chat.akash.network/api/auth/session/", headers=self.headers) as response:
+            assert isinstance(response, rnet.Response)
+            assert response.ok, f"ERROR: {response.status} {await response.text()}"
             data = await response.json()
+        
         return data.get("success", False)
     
     async def models(self) -> list[str]:
         async with self.client() as client:
             async with await client.get("https://chat.akash.network/api/models/", headers=self.headers) as response:
+                assert isinstance(response, rnet.Response)
+                assert response.ok, f"ERROR: {response.status} {await response.text()}"
                 return [ x["id"] for x in await response.json() if x["available"] ]
     
     async def generate_text(self, context : context.Context) -> context.Text:
@@ -35,6 +40,8 @@ class AkashWorker(worker.Worker):
             async with self.client() as client:
                 async with await client.post("https://chat.akash.network/api/chat/", json=context.body, headers=self.headers) as response:
                     assert isinstance(response, rnet.Response)
+                    assert response.ok, f"ERROR: {response.status} {await response.text()}"
+
                     async with response.stream() as streamer:
                         assert isinstance(streamer, rnet.Streamer)
                         buffer = b""
@@ -80,6 +87,8 @@ Negative prompt: {context.body.get("negative_prompt", "")}
             # start generate
             async with await client.post("https://chat.akash.network/api/chat/", json=payload, headers=self.headers) as response:
                 assert isinstance(response, rnet.Response)
+                assert response.ok, f"ERROR: {response.status} {await response.text()}"
+
                 async with response.stream() as streamer:
                     assert isinstance(streamer, rnet.Streamer)
                     chunks = b""
@@ -101,6 +110,8 @@ Negative prompt: {context.body.get("negative_prompt", "")}
             # wait for done
             while True:
                 async with await client.get(f"https://chat.akash.network/api/image-status/?ids={job_id}", headers=self.headers) as response:
+                    assert isinstance(response, rnet.Response)
+                    assert response.ok, f"ERROR: {response.status} {await response.text()}"
                     data = await response.json()
                 
                 if data[0].get("status") == "pending":

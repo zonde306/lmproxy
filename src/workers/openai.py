@@ -16,7 +16,8 @@ class OpenAiWorker(worker.Worker):
     ) -> None:
         super().__init__(settings, proxies)
         self.headers: dict[str, str] = settings.get("headers", {})
-        self.base_url: str = settings.get("base_url", "https://api.openai.com/v1")
+        self.models_url: str = settings.get("models_url", "https://api.openai.com/v1/models")
+        self.completions_url: str = settings.get("completions_url", "https://api.openai.com/v1/completions")
         self.api_keys: list[str] = settings.get("api_keys", [])
         if key := settings.get("api_key"):
             self.api_keys.append(key)
@@ -26,13 +27,15 @@ class OpenAiWorker(worker.Worker):
 
     async def models(self) -> list[str]:
         async with self._resources.get() as api_key:
-            if not api_key:
+            if api_key is None:
                 raise error.WorkerOverloadError("No API keys available")
 
             headers = self.headers.copy()
-            headers["Authorization"] = f"Bearer {api_key}"
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+            
             async with self.client() as client:
-                url = urllib.parse.urljoin(self.base_url, "models")
+                url = urllib.parse.urljoin(self.models_url, "models")
                 async with await client.get(url, headers=headers) as response:
                     data = await response.json()
                     return [x["id"] for x in data["data"]]
@@ -63,20 +66,23 @@ class OpenAiWorker(worker.Worker):
     async def streaming(self, context: context.Context) -> context.Text:
         async def generate() -> typing.AsyncGenerator[str, None]:
             async with self._resources.get() as api_key:
-                if not api_key:
+                if api_key is None:
                     raise error.WorkerOverloadError("No API keys available")
 
                 headers = self.headers.copy()
-                headers["Authorization"] = f"Bearer {api_key}"
+                if api_key:
+                    headers["Authorization"] = f"Bearer {api_key}"
+                
                 body = context.body.copy()
                 body["stream"] = True
 
                 async with self.client() as client:
-                    url = urllib.parse.urljoin(self.base_url, "chat/completions")
                     async with await client.post(
-                        url, json=body, headers=headers
+                        self.completions_url, json=body, headers=headers
                     ) as response:
                         assert isinstance(response, rnet.Response)
+                        assert response.ok, f"ERROR: {response.status} {await response.text()}"
+                        
                         async with response.stream() as streamer:
                             assert isinstance(streamer, rnet.Streamer)
                             buffer = b""
@@ -103,19 +109,23 @@ class OpenAiWorker(worker.Worker):
 
     async def no_streaming(self, context: context.Context) -> context.Text:
         async with self._resources.get() as api_key:
-            if not api_key:
+            if api_key is None:
                 raise error.WorkerOverloadError("No API keys available")
 
             headers = self.headers.copy()
-            headers["Authorization"] = f"Bearer {api_key}"
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+            
             body = context.body.copy()
             body["stream"] = False
 
             async with self.client() as client:
-                url = urllib.parse.urljoin(self.base_url, "chat/completions")
                 async with await client.post(
-                    url, json=context.body, headers=headers
+                    self.completions_url, json=context.body, headers=headers
                 ) as response:
+                    assert isinstance(response, rnet.Response)
+                    assert response.ok, f"ERROR: {response.status} {await response.text()}"
+
                     data = await response.json()
                     text = data["choices"][0]["message"].get("content", None)
                     reasoning = data["choices"][0]["message"].get("reasoning_content", None)

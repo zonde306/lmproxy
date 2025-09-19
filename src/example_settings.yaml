@@ -1,6 +1,6 @@
 middleware:
   middlewares:
-    - class: "middlewares.authorization.AuthorizationMiddleware"
+    - class: "middlewares.AuthorizationMiddleware"
       token: "12345"
 
 retry:
@@ -9,12 +9,24 @@ retry:
 
 worker:
   workers:
-    - class: "workers.akash.AkashWorker"
+    - class: "workers.AkashWorker"
       name: "akash-web"
       priority: 100
       models:
         - "DeepSeek-V3.1"
         - "AkashGen"
+    
+    - class: "workers.PollinationsWorker"
+      name: "pollinations"
+      priority: 100
+      models:
+        - "deepseek-reasoning"
+        - "gemini"
+        - "openai"
+        - "qwen-coder"
+        - "openai-reasoning"
+        - "openai-fast"
+      api_key: ""
 
 proxy:
   local:
