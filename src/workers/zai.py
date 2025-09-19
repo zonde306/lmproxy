@@ -111,11 +111,17 @@ class ZaiWorker(openai.OpenAiWorker):
             raise error.WorkerOverloadError(f"z.ai ERROR: {err}")
         
         content = data.get("data", {})
-        text = content.get("delta_content", None)
+        text = content.get("delta_content", "")
+
         if not text:
             return [ None, None ]
         
         if content.get("phase", None) == "thinking":
             return [ None, text ]
+        
+        if content.get("phase", None) == "answer":
+            if edit := content.get("edit_content", ""):
+                text += edit + "\n\n" + text
+            return [ text, None ]
         
         return [ text, None ]

@@ -44,7 +44,7 @@ worker:
       api_key: ""
     
     - class: "workers.ZaiWorker"
-      name: "longchat"
+      name: "z.ai"
       priority: 100
       models:
         - "GLM-4.5"
