@@ -122,13 +122,13 @@ class WorkerManager:
                     
                     # 等待第一个结果或者异常
                     first_chunk = await result.__anext__()
-                    
-                    # 流式未发生异常
-                    async def gen():
+
+                    # 流式开始时未发生异常，那么中途应该也不会发生
+                    async def continue_generate():
                         yield first_chunk
                         async for chunk in result:
                             yield chunk
-                    return gen()
+                    return continue_generate()
 
             raise error.WorkerError("No avaliable workers")
         
