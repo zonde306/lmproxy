@@ -20,6 +20,7 @@ class Worker:
         self.settings = settings
         self._proxies = proxies
         self.available_models: list[str] = settings.get("models", [])
+        self.aliases: dict[str, str] = settings.get("aliases", {})
         self.client_args: http_client.ClientOptions = {}
         self.name = settings.get("name", self.__class__.__name__)
 

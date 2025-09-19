@@ -13,9 +13,11 @@ worker:
       name: "akash-web"
       priority: 100
       models:
-        - "DeepSeek-V3.1"
+        - "deepseek-reasoner"
         - "AkashGen"
-    
+      aliases:
+        deepseek-reasoner: "DeepSeek-V3.1"
+
     - class: "workers.PollinationsWorker"
       name: "pollinations"
       priority: 100
@@ -25,8 +27,13 @@ worker:
         - "openai"
         - "qwen-coder"
         - "openai-reasoning"
-        - "openai-fast"
       api_key: ""
+      aliases:
+        deepseek-reasoner: "deepseek-reasoning"
+        gemini-2.5-flash-lite: "gemini"
+        gpt-5-nano: "openai"
+        gpt-4o-mini-audio-preview: "openai-audio"
+        o4-mini: "openai-reasoning"
 
 proxy:
   local:
@@ -44,12 +51,12 @@ logging:
 
   formatters:
     fastapi_style:
-      format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-      datefmt: '%Y-%m-%d %H:%M:%S'
-    
+      format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+      datefmt: "%Y-%m-%d %H:%M:%S"
+
     default_style:
-      format: '%(levelname)s:    %(message)s'
-      datefmt: '%Y-%m-%d %H:%M:%S'
+      format: "%(levelname)s:    %(message)s"
+      datefmt: "%Y-%m-%d %H:%M:%S"
 
   handlers:
     console:
@@ -63,7 +70,7 @@ logging:
       level: WARNING
       formatter: fastapi_style
       filename: ../logs/app.log
-      maxBytes: 10485760  # 10MB
+      maxBytes: 10485760 # 10MB
       backupCount: 5
       encoding: utf-8
 
@@ -76,7 +83,7 @@ logging:
       level: INFO
       handlers: [console]
       propagate: false
-    
+
     blacksheep:
       level: INFO
       handlers: [console]

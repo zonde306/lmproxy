@@ -19,13 +19,16 @@ class OpenAiWorker(worker.Worker):
         self.models_url: str = settings.get("models_url", "https://api.openai.com/v1/models")
         self.completions_url: str = settings.get("completions_url", "https://api.openai.com/v1/completions")
         self.api_keys: list[str] = settings.get("api_keys", [])
-        if key := settings.get("api_key"):
+        key = settings.get("api_key")
+        if key is not None:
             self.api_keys.append(key)
         self._resources = resources.ResourceManager(
             self.api_keys, settings.get("lock_timeout", 60)
         )
 
     async def models(self) -> list[str]:
+        reverse_aliases = dict(zip(self.aliases.values(), self.aliases.keys()))
+
         async with self._resources.get() as api_key:
             if api_key is None:
                 raise error.WorkerOverloadError("No API keys available")
@@ -38,7 +41,7 @@ class OpenAiWorker(worker.Worker):
                 url = urllib.parse.urljoin(self.models_url, "models")
                 async with await client.get(url, headers=headers) as response:
                     data = await response.json()
-                    return [x["id"] for x in data["data"]]
+                    return [ reverse_aliases.get(x["id"], x["id"]) for x in data["data"] ]
 
     async def generate_text(self, context: context.Context) -> context.Text:
         if context.body.get("model") not in self.available_models:
@@ -73,7 +76,7 @@ class OpenAiWorker(worker.Worker):
                 if api_key:
                     headers["Authorization"] = f"Bearer {api_key}"
                 
-                body = context.body.copy()
+                body = context.payload(self.aliases)
                 body["stream"] = True
 
                 async with self.client() as client:
@@ -116,12 +119,12 @@ class OpenAiWorker(worker.Worker):
             if api_key:
                 headers["Authorization"] = f"Bearer {api_key}"
             
-            body = context.body.copy()
+            body = context.payload(self.aliases)
             body["stream"] = False
 
             async with self.client() as client:
                 async with await client.post(
-                    self.completions_url, json=context.body, headers=headers
+                    self.completions_url, json=body, headers=headers
                 ) as response:
                     assert isinstance(response, rnet.Response)
                     assert response.ok, f"ERROR: {response.status} {await response.text()}"

@@ -24,11 +24,13 @@ class AkashWorker(worker.Worker):
         return data.get("success", False)
     
     async def models(self) -> list[str]:
+        reverse_aliases = dict(zip(self.aliases.values(), self.aliases.keys()))
+
         async with self.client() as client:
             async with await client.get("https://chat.akash.network/api/models/", headers=self.headers) as response:
                 assert isinstance(response, rnet.Response)
                 assert response.ok, f"ERROR: {response.status} {await response.text()}"
-                return [ x["id"] for x in await response.json() if x["available"] ]
+                return [ reverse_aliases.get(x["id"], x["id"]) for x in await response.json() if x["available"] ]
     
     async def generate_text(self, context : context.Context) -> context.Text:
         if context.body.get("model") not in self.available_models:
@@ -38,7 +40,7 @@ class AkashWorker(worker.Worker):
 
         async def generate():
             async with self.client() as client:
-                async with await client.post("https://chat.akash.network/api/chat/", json=context.body, headers=self.headers) as response:
+                async with await client.post("https://chat.akash.network/api/chat/", json=context.payload(self.aliases), headers=self.headers) as response:
                     assert isinstance(response, rnet.Response)
                     assert response.ok, f"ERROR: {response.status} {await response.text()}"
 

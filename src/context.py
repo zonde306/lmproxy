@@ -45,3 +45,11 @@ class Context:
     @property
     def model(self) -> str:
         return self.body.get("model", "")
+    
+    def payload(self, aliases: dict[str, str] = {}):
+        body = self.body.copy()
+        model = body.get("model", None)
+        if model in aliases:
+            body["model"] = aliases[model]
+        
+        return body

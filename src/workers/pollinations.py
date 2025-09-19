@@ -20,17 +20,19 @@ class PollinationsWorker(openai.OpenAiWorker):
         self.text_models: list[str] = []
 
     async def models(self) -> list[str]:
+        reverse_aliases = dict(zip(self.aliases.values(), self.aliases.keys()))
+
         async with self.client() as client:
             async with await client.get(
                 "https://image.pollinations.ai/models"
             ) as response:
-                self.image_models = await response.json()
+                self.image_models = [ reverse_aliases.get(x, x) for x in await response.json()]
             async with await client.get(
                 "https://text.pollinations.ai/models"
             ) as response:
                 data = await response.json()
                 self.text_models = [
-                    x["name"] for x in data
+                    reverse_aliases.get(x["name"], x["name"]) for x in data
                 ]
 
         return self.image_models + self.text_models
