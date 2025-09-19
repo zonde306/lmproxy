@@ -22,7 +22,7 @@ worker:
       name: "pollinations"
       priority: 100
       models:
-        - "deepseek-reasoning"
+        - "deepseek-reasoner"
         - "qwen-coder"
         - "openai-reasoning"
       api_key: ""

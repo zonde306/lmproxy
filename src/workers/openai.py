@@ -132,7 +132,7 @@ class OpenAiWorker(worker.Worker):
                     )
 
                     data = await response.json()
-                    return self._parse_response(data)
+                    return await self._parse_response(data)
 
     async def to_streaming(
         self, response: typing.Awaitable[context.Text]
