@@ -64,6 +64,7 @@ class AkashWorker(worker.Worker):
                     assert response.ok, (
                         f"ERROR: {response.status} {await response.text()}"
                     )
+                    reasoning = False
 
                     async with response.stream() as streamer:
                         assert isinstance(streamer, rnet.Streamer)
@@ -81,23 +82,39 @@ class AkashWorker(worker.Worker):
                                         content.decode(response.encoding or "utf-8")
                                     )
                                     if isinstance(data, str):
-                                        yield context.Text(
-                                            type="text",
-                                            content=data,
-                                            reasoning_content=None,
-                                            tool_calls=None,
-                                        )
+                                        if "<think>" in data:
+                                            reasoning = True
+                                            data = data.replace("<think>", "")
+                                        elif "</think>" in data:
+                                            reasoning = False
+                                            data = data.replace("</think>", "")
+
+                                        if data:
+                                            yield context.Text(
+                                                type="text",
+                                                content=data if not reasoning else None,
+                                                reasoning_content=data if reasoning else None,
+                                                tool_calls=None,
+                                            )
 
                             buffer = b""
 
         if ctx.body.get("stream", False):
             return generate()
 
-        data = ""
+        data = context.Text(type="text", content="", reasoning_content="", tool_calls=None)
         async for chunk in generate():
-            data += chunk
+            if delta := chunk.get("content", None):
+                data["content"] += delta
+            if delta := chunk.get("reasoning_content", None):
+                data["reasoning_content"] += delta
+        
+        data.update({
+            "content": data["content"] if data["content"] else None,
+            "reasoning_content": data["reasoning_content"] if data["reasoning_content"] else None,
+        })
 
-        return [data, None]
+        return data
 
     async def generate_image(self, ctx: context.Context) -> context.Image:
         payload = {

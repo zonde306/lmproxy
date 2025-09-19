@@ -49,6 +49,12 @@ worker:
         - "GLM-4.5-Air"
         - "GLM-4.5v"
       api_key: ""
+    
+    - class: "workers.K2ThinkWorker"
+      name: "k2think"
+      priority: 100
+      models:
+        - "K2-Think"
 
 proxy:
   local:
