@@ -5,6 +5,7 @@ import loader
 
 logger = logging.getLogger(__name__)
 
+
 class Middleware:
     def __init__(self, settings: dict[str, typing.Any]) -> None:
         self.settings = settings
@@ -28,6 +29,12 @@ class Middleware:
         返回 True 以吞掉异常
         """
         ...
+
+    def __str__(self):
+        return f"Middleware({self.settings.get('name', self.__class__.__name__)})"
+
+    def __repr__(self):
+        return f"Middleware({self.settings.get('name', self.__class__.__name__)})"
 
 
 class MiddlewareManager:
@@ -56,6 +63,7 @@ class MiddlewareManager:
 
         middlewares.sort(key=lambda x: x[0], reverse=True)
         self.middlewares = [middleware[1] for middleware in middlewares]
+        logger.info(f"middlewares: {self.middlewares}")
 
     async def process_request(self, ctx: context.Context) -> bool | None:
         for middleware in self.middlewares:

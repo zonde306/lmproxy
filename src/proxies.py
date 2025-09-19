@@ -18,11 +18,13 @@ class ProxyManager:
         # 注意：这里我们定义一个总的获取超时，而不是重试延迟
         timeout: float = 10.0,
         separator: str = "\n",
+        repeat: int = 1,
         *args,
         **kwargs,
     ):
         self.renew_url = url
-        self._proxies = list(initial)  # 可用代理池
+        self._repeat = repeat
+        self._proxies : list[str] = list(initial) * repeat  # 可用代理池
         self._in_use = set()  # 正在使用的代理
         # 使用 Condition 替代 Lock + Event
         self._condition = asyncio.Condition()
@@ -75,7 +77,7 @@ class ProxyManager:
 
         async with self._condition:
             if new_proxies:
-                self._proxies.extend(new_proxies)
+                self._proxies.extend(new_proxies * self._repeat)
             self._is_renewing = False  # 重置标志
             self._condition.notify_all()  # 唤醒所有等待的任务
 

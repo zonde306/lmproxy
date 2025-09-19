@@ -96,6 +96,7 @@ class WorkerManager:
 
         workers.sort(key=lambda x: x[0], reverse=True)
         self.workers = [worker[1] for worker in workers]
+        logger.info(f"workers: {self.workers}")
 
     @cache.ttl_cache(300)
     async def models(self) -> list[str]:

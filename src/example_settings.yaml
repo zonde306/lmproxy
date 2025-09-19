@@ -24,6 +24,7 @@ proxy:
       - "socks5://127.0.0.1:1080"
     timeout: 9
     max_retries: 3
+    repeat: 1
 
 logging:
   version: 1
