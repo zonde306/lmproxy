@@ -1,4 +1,5 @@
 import typing
+import inspect
 import asyncio
 import logging
 import itertools
@@ -109,12 +110,29 @@ class WorkerManager:
         return avaliable_models
 
     async def generate_text(self, context: context.Context) -> context.Text:
-        for worker in self.workers:
-            with error.worker_handler(context, logger, worker):
-                logger.debug(f"model: {context.model}, worker: {worker}")
-                return await worker.generate_text(context)
+        async def generate():
+            for worker in self.workers:
+                with error.worker_handler(context, logger, worker):
+                    logger.debug(f"model: {context.model}, worker: {worker}")
+                    result = await worker.generate_text(context)
 
-        raise error.WorkerError("No avaliable workers")
+                    # 非流式未发生异常直接返回
+                    if not inspect.isasyncgen(result):
+                        return result
+                    
+                    # 等待第一个结果或者异常
+                    first_chunk = await result.__anext__()
+                    
+                    # 流式未发生异常
+                    async def gen():
+                        yield first_chunk
+                        async for chunk in result:
+                            yield chunk
+                    return gen()
+
+            raise error.WorkerError("No avaliable workers")
+        
+        return await generate()
 
     async def generate_image(self, context: context.Context) -> context.Image:
         for worker in self.workers:

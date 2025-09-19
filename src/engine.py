@@ -75,7 +75,7 @@ class Engine:
         callee: typing.Callable[[context.Context], typing.Any],
     ) -> context.Response:
         task_id = ctx.metadata["task_id"] = uuid.uuid4().hex
-
+        
         try:
             if not await self.middleware.process_request(ctx):
                 logger.info(f"{task_id} request cancelled")

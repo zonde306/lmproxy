@@ -53,3 +53,7 @@ class Context:
             body["model"] = aliases[model]
         
         return body
+    
+    @property
+    def stream(self) -> bool:
+        return self.body.get("stream", False)
