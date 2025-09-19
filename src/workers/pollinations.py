@@ -26,7 +26,9 @@ class PollinationsWorker(openai.OpenAiWorker):
             async with await client.get(
                 "https://image.pollinations.ai/models"
             ) as response:
-                self.image_models = [ reverse_aliases.get(x, x) for x in await response.json()]
+                self.image_models = [
+                    reverse_aliases.get(x, x) for x in await response.json()
+                ]
             async with await client.get(
                 "https://text.pollinations.ai/models"
             ) as response:
@@ -45,24 +47,24 @@ class PollinationsWorker(openai.OpenAiWorker):
 
         return await super().generate_text(context)
 
-    async def generate_image(self, context: context.Context) -> context.Image:
-        if context.body.get("model") not in self.image_models:
+    async def generate_image(self, ctx: context.Context) -> context.Image:
+        if ctx.body.get("model") not in self.image_models:
             raise error.WorkerUnsupportedError(
-                f"Model {context.body['model']} not available for image generation"
+                f"Model {ctx.body['model']} not available for image generation"
             )
-        
-        prompt = urllib.parse.quote(context.body.get("prompt", ""), safe="")
+
+        prompt = urllib.parse.quote(ctx.body.get("prompt", ""), safe="")
         data = {
-            "model": context.body.get("model", "flux"),
-            "seed": context.body.get("seed", random.randint(0, 0xFFFFFFFF)),
-            "width": context.body.get("width", 1024),
-            "height": context.body.get("height", 1024),
-            "enhance": context.body.get("enhance", "true"),
-            "safe": context.body.get("enhance", "false"),
+            "model": ctx.body.get("model", "flux"),
+            "seed": ctx.body.get("seed", random.randint(0, 0xFFFFFFFF)),
+            "width": ctx.body.get("width", 1024),
+            "height": ctx.body.get("height", 1024),
+            "enhance": ctx.body.get("enhance", "true"),
+            "safe": ctx.body.get("enhance", "false"),
         }
-        if image := context.body.get("image", None):
+        if image := ctx.body.get("image", None):
             data["image"] = image
-        
+
         async with self._resources.get() as api_key:
             if api_key is None:
                 raise error.WorkerOverloadError("No API keys available")
@@ -70,16 +72,21 @@ class PollinationsWorker(openai.OpenAiWorker):
             headers = self.headers.copy()
             if api_key:
                 headers["Authorization"] = f"Bearer {api_key}"
-            
+
             data["nologo"] = str(bool(api_key))
 
             async with self.client() as client:
                 async with await client.get(
-                    f"https://image.pollinations.ai/prompt/{prompt}?{urllib.parse.urlencode(data)}", json=context.body, headers=headers
+                    f"https://image.pollinations.ai/prompt/{prompt}?{urllib.parse.urlencode(data)}",
+                    json=ctx.body,
+                    headers=headers,
                 ) as response:
                     assert isinstance(response, rnet.Response)
-                    assert response.ok, f"ERROR: {response.status} {await response.text()}"
-                    
-                    binary = await response.bytes()
-                    return [ binary, "image/jpeg" ]
+                    assert response.ok, (
+                        f"ERROR: {response.status} {await response.text()}"
+                    )
 
+                    binary = await response.bytes()
+                    return context.Image(
+                        type="image", content=binary, mime_type="image/jpeg"
+                    )

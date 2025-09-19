@@ -23,7 +23,7 @@ def worker_handler(ctx: context.Context, logger: logging.Logger, worker: str = "
     try:
         yield
     except (WorkerError, NotImplementedError, AssertionError) as e:
-        logger.warning(f"{worker} unavaliable: {e} for model {ctx.body.get('model')}", extra={"context": ctx})
+        logger.info(f"{worker} unavaliable: {e} for model {ctx.body.get('model')}", extra={"context": ctx})
     except Exception as e:
         logger.critical(f"{worker} error: {e} for model {ctx.body.get('model')}", exc_info=True, extra={"context": ctx})
         raise

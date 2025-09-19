@@ -1,23 +1,53 @@
 import typing
 import dataclasses
 
-Text = typing.TypeVar(
-    "Text", tuple[str, str], typing.AsyncGenerator[tuple[str, str], None]
-)  # [content, reasoning]
-Image = typing.TypeVar("Image", bound=tuple[bytes, str])  # [image, mime_type]
-Embedding = typing.TypeVar("Embedding", bound=list[float])  # vector
-Audio = typing.TypeVar(
-    "Audio", tuple[bytes, str], typing.AsyncGenerator[tuple[bytes, str], None]
-)  # [audio, mime_type]
-CountTokens = typing.TypeVar("CountTokens", bound=int)  # tokens
-Video = typing.TypeVar(
-    "Audio", tuple[bytes, str], typing.AsyncGenerator[bytes, None]
-)  # [video, mime_type]
+
+class Text(typing.TypedDict):
+    type: typing.Literal["text"] = "text"
+    content: str | None = None
+    reasoning_content: str | None = None
+    tool_calls: list[dict[str, typing.Any]] | None = None
+
+
+class Image(typing.TypedDict):
+    type: typing.Literal["image"] = "image"
+    content: bytes
+    mime_type: str
+
+
+class Embedding(typing.TypedDict):
+    type: typing.Literal["embedding"] = "embedding"
+    content: list[float]
+
+
+class Audio(typing.TypedDict):
+    type: typing.Literal["audio"] = "audio"
+    content: bytes
+    mime_type: str
+
+
+class Video(typing.TypedDict):
+    type: typing.Literal["video"] = "video"
+    content: bytes
+    mime_type: str
+
+
+class CountTokens(typing.TypedDict):
+    type: typing.Literal["count_tokens"] = "count_tokens"
+    content: int
+
+
+BodyType = Text | Image | Embedding | Audio | Video
 
 
 @dataclasses.dataclass
 class Response:
-    body: Text | Image | Embedding | Audio | CountTokens | Video | dict[str, typing.Any]
+    body: (
+        BodyType
+        | typing.AsyncGenerator[BodyType, None]
+        | CountTokens
+        | dict[str, typing.Any]
+    )
     status_code: int = 200
     headers: dict[str, str] = dataclasses.field(default_factory=dict)
 
@@ -27,7 +57,13 @@ class Context:
     headers: dict[str, str]
     body: dict[str, typing.Any]
     type: typing.Literal["text", "image", "audio", "embedding", "video"]
-    response: Text | Image | Embedding | Audio | CountTokens | Video | None = None
+    response: (
+        BodyType
+        | typing.AsyncGenerator[BodyType, None]
+        | CountTokens
+        | dict[str, typing.Any]
+        | None
+    ) = None
     status_code: int = 200
     response_headers: dict[str, str] = dataclasses.field(default_factory=dict)
     metadata: dict[str, typing.Any] = dataclasses.field(default_factory=dict)
@@ -41,19 +77,19 @@ class Context:
         if not self.response:
             return None
         return Response(self.response, self.status_code, self.response_headers)
-    
+
     @property
     def model(self) -> str:
         return self.body.get("model", "")
-    
+
     def payload(self, aliases: dict[str, str] = {}):
         body = self.body.copy()
         model = body.get("model", None)
         if model in aliases:
             body["model"] = aliases[model]
-        
+
         return body
-    
+
     @property
     def stream(self) -> bool:
         return self.body.get("stream", False)

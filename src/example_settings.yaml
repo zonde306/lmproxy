@@ -23,8 +23,6 @@ worker:
       priority: 100
       models:
         - "deepseek-reasoning"
-        - "gemini"
-        - "openai"
         - "qwen-coder"
         - "openai-reasoning"
       api_key: ""

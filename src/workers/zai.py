@@ -4,6 +4,7 @@ import typing
 import datetime
 import proxies
 import error
+import context
 from . import openai
 import rnet
 
@@ -41,7 +42,7 @@ class ZaiWorker(openai.OpenAiWorker):
                 data = await response.json()
                 return data["token"]
     
-    async def _process_payload(self,
+    async def _prepare_payload(self,
             headers: dict[str, str],
             body: dict[str, typing.Any],
             api_key: str,
@@ -105,23 +106,23 @@ class ZaiWorker(openai.OpenAiWorker):
             if message.get("role", "") == "system":
                 message["role"] = "user"
     
-    async def _get_content(self, data: dict[str, typing.Any]) -> tuple[str | None, str | None]:
+    async def _parse_response(self, data: dict[str, typing.Any]) -> context.Text:
         err = data.get("error") or data.get("data", {}).get("error") or data.get("data", {}).get("inner", {}).get("error")
         if err:
-            raise error.WorkerOverloadError(f"z.ai ERROR: {err}")
+            raise error.WorkerOverloadError(f"zAI ERROR: {err}")
         
-        content = data.get("data", {})
-        text = content.get("delta_content", "")
+        inner = data.get("data", {})
+        delta = inner.get("delta_content", "")
 
-        if not text:
-            return [ None, None ]
+        if not delta:
+            return context.Text(type="text", content=None, reasoning_content=None)
         
-        if content.get("phase", None) == "thinking":
-            return [ None, text ]
+        if inner.get("phase", None) == "thinking":
+            return context.Text(type="text", content=None, reasoning_content=delta)
         
-        if content.get("phase", None) == "answer":
-            if edit := content.get("edit_content", ""):
-                text += edit + "\n\n" + text
-            return [ text, None ]
+        if inner.get("phase", None) == "answer":
+            if edit := inner.get("edit_content", ""):
+                delta += edit + "\n\n" + delta
+            return context.Text(type="text", content=delta, reasoning_content=None)
         
-        return [ text, None ]
+        return context.Text(type="text", content=delta, reasoning_content=None)
