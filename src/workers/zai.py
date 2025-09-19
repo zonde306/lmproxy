@@ -1,5 +1,4 @@
 import time
-import math
 import uuid
 import typing
 import datetime
@@ -17,11 +16,22 @@ class ZaiWorker(openai.OpenAiWorker):
         super().__init__(settings, proxies)
         self.headers = {
             "Referer": "https://chat.z.ai",
-            "X-FE-Version": "prod-fe-1.0.70",
+            "X-FE-Version": "prod-fe-1.0.79",
         }
     
     async def models(self) -> list[str]:
-        return [ "GLM-4.5", "GLM-4.5-thinking", "GLM-4.5-search", "GLM-4.5-search-thinking" ]
+        return [
+            "GLM-4.5",
+            "GLM-4.5-thinking",
+            "GLM-4.5-search",
+            "GLM-4.5-search-thinking",
+            "GLM-4.5-Air",
+            "GLM-4.5-Air-thinking",
+            "GLM-4.5-Air-search",
+            "GLM-4.5-Air-search-thinking",
+            "GLM-4.5v",
+            "GLM-4.5v-thinking",
+        ]
     
     async def create_token(self):
         async with self.client() as client:
@@ -44,23 +54,37 @@ class ZaiWorker(openai.OpenAiWorker):
         
         model = body.get("model", "GLM-4.5")
 
+        upstream_model = "0727-360B-API"
+        upstream_name = "GLM-4.5"
+        if "-Air" in model:
+            upstream_model = "0727-106B-API"
+            upstream_name = "GLM-4.5-Air"
+        elif "5v" in model:
+            upstream_model = "glm-4.5v"
+            upstream_name = "GLM-4.5v"
+
         body.update({
             "stream": streaming,
-            "model": "0727-360B-API",
+            "model": upstream_model,
             "chat_id": str(uuid.uuid4()),
             "id": str(uuid.uuid4()),
             "params": {},
             "features": {
                 "enable_thinking": "-thinking" in model,
+                "web_search": "-search" in model,
+                "auto_web_search": "-search" in model,
+                "preview_mode": False,
+                "flags": [],
+                "features": [],
             },
             "background_tasks": {
                 "title_generation": False,
                 "tags_generation": False,
             },
             "model_item": {
-                "id": "0727-360B-API",
-                "name": "GLM-4.5",
-                "owned_by": "openai"
+                "id": upstream_model,
+                "name": upstream_name,
+                "owned_by": "z.ai"
             },
             "variables": {
                 "{{USER_NAME}}": f"Guest-{int(time.time())}",
@@ -74,6 +98,12 @@ class ZaiWorker(openai.OpenAiWorker):
             },
             "mcp_servers": [ "deep-web-search" ] if "-search" in model else []
         })
+
+        headers["Referer"] = f"https://chat.z.ai/c/{body['chat_id']}"
+
+        for message in body.get("messages", []):
+            if message.get("role", "") == "system":
+                message["role"] = "user"
     
     async def _get_content(self, data: dict[str, typing.Any]) -> tuple[str | None, str | None]:
         err = data.get("error") or data.get("data", {}).get("error") or data.get("data", {}).get("inner", {}).get("error")

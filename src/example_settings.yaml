@@ -42,6 +42,15 @@ worker:
         - "longcat-flash"
         - "longcat-flash-search"
       api_key: ""
+    
+    - class: "workers.ZaiWorker"
+      name: "longchat"
+      priority: 100
+      models:
+        - "GLM-4.5"
+        - "GLM-4.5-Air"
+        - "GLM-4.5v"
+      api_key: ""
 
 proxy:
   local:
