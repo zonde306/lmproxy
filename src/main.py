@@ -4,15 +4,16 @@ import random
 import logging
 import inspect
 import blacksheep
-import router
+import engine
 import conf
+import context
 
 logger = logging.getLogger(__name__)
 
 app = blacksheep.Application()
 app.add_cors_policy("lmproxy", allow_methods="GET,POST,OPTIONS", allow_origins="*")
 
-engine = router.Router(conf.settings)
+engine = engine.Engine(conf.settings)
 
 
 @blacksheep.get("/v1/models")
@@ -43,6 +44,9 @@ async def chat_completions(request: blacksheep.Request) -> blacksheep.Response:
     result = await engine.generate_text(
         payload, {k.decode(): v.decode() for k, v in request.headers.items()}
     )
+    if isinstance(result.body, dict):
+        return blacksheep.Response(result.status_code, list(result.headers.items()), blacksheep.JSONContent(result.body))
+
     if inspect.isasyncgen(result.body):
 
         async def generate():

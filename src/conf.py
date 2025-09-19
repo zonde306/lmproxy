@@ -1,6 +1,7 @@
 import sys
 import yaml
 import os.path
+import logging.config
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -13,3 +14,5 @@ if os.path.exists("../settings.yaml"):
 else:
     with open("../settings.yaml", "w", encoding="utf-8") as f:
         yaml.dump(settings, f)
+
+logging.config.dictConfig(settings.get("logging", {}))

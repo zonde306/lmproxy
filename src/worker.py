@@ -1,5 +1,6 @@
 import typing
 import asyncio
+import logging
 import itertools
 import contextlib
 import context
@@ -9,6 +10,8 @@ import cache
 import proxies
 import http_client
 import rnet
+
+logger = logging.getLogger(__name__)
 
 class Worker:
     def __init__(
@@ -99,46 +102,54 @@ class WorkerManager:
         [ x.available_models.clear() for x in self.workers ]
         models = await asyncio.gather(*[ x.models() for x in self.workers ])
         [ x.available_models.extend(models[i]) for i, x in enumerate(self.workers) ]
-        return sorted(set(itertools.chain.from_iterable(models)), key=lambda x: x.lower())
+        avaliable_models = sorted(set(itertools.chain.from_iterable(models)), key=lambda x: x.lower())
+        logger.info(f"available models: {avaliable_models}")
+        return avaliable_models
 
     async def generate_text(self, context: context.Context) -> context.Text:
         for worker in self.workers:
-            with contextlib.suppress(NotImplementedError, error.WorkerError):
+            with error.worker_handler(context, logger, worker):
+                logger.debug(f"model: {context.model}, worker: {worker}")
                 return await worker.generate_text(context)
 
         raise error.WorkerError("No avaliable workers")
 
     async def generate_image(self, context: context.Context) -> context.Image:
         for worker in self.workers:
-            with contextlib.suppress(NotImplementedError, error.WorkerError):
+            with error.worker_handler(context, logger, worker):
+                logger.debug(f"model: {context.model}, worker: {worker}")
                 return await worker.generate_image(context)
 
         raise error.WorkerError("No avaliable workers")
 
     async def generate_audio(self, context: context.Context) -> context.Audio:
         for worker in self.workers:
-            with contextlib.suppress(NotImplementedError, error.WorkerError):
+            with error.worker_handler(context, logger, worker):
+                logger.debug(f"model: {context.model}, worker: {worker}")
                 return await worker.generate_audio(context)
 
         raise error.WorkerError("No avaliable workers")
 
     async def generate_embedding(self, context: context.Context) -> context.Embedding:
         for worker in self.workers:
-            with contextlib.suppress(NotImplementedError, error.WorkerError):
+            with error.worker_handler(context, logger, worker):
+                logger.debug(f"model: {context.model}, worker: {worker}")
                 return await worker.generate_embedding(context)
 
         raise error.WorkerError("No avaliable workers")
 
     async def generate_video(self, context: context.Context) -> context.Video:
         for worker in self.workers:
-            with contextlib.suppress(NotImplementedError, error.WorkerError):
+            with error.worker_handler(context, logger, worker):
+                logger.debug(f"model: {context.model}, worker: {worker}")
                 return await worker.generate_video(context)
 
         raise error.WorkerError("No avaliable workers")
 
     async def count_tokens(self, context) -> context.CountTokens:
         for worker in self.workers:
-            with contextlib.suppress(NotImplementedError, error.WorkerError):
+            with error.worker_handler(context, logger, worker):
+                logger.debug(f"model: {context.model}, worker: {worker}")
                 return await worker.count_tokens(context)
 
         return -1

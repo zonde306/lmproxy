@@ -1,6 +1,7 @@
 import typing
 import uuid
 import inspect
+import logging
 import context
 import retry
 import middleware
@@ -8,8 +9,9 @@ import worker
 import proxies
 import error
 
+logger = logging.getLogger(__name__)
 
-class Router:
+class Engine:
     def __init__(self, settings: dict[str, typing.Any]):
         self.settings = settings
         self.middleware = middleware.MiddlewareManager(settings.get("middleware", {}))
@@ -72,30 +74,26 @@ class Router:
         ctx: context.Context,
         callee: typing.Callable[[context.Context], typing.Any],
     ) -> context.Response:
-        ctx.metadata["task_id"] = uuid.uuid4().hex
+        task_id = ctx.metadata["task_id"] = uuid.uuid4().hex
 
         try:
             if not await self.middleware.process_request(ctx):
-                return context.Response(
-                    status_code=200,
-                    headers=ctx.response_headers,
-                    body=ctx.response,
-                )
+                logger.info(f"{task_id} request cancelled")
+                return ctx.to_response
 
             async for attempt in self.retries(ctx):
                 async with attempt:
+                    logger.info(f"{task_id} start attempt {attempt.attempt_number}")
                     response = await self._to_response(ctx, await callee(ctx))
 
                     if not await self.middleware.process_response(ctx):
-                        return context.Response(
-                            status_code=200,
-                            headers=ctx.response_headers,
-                            body=ctx.response,
-                        )
+                        logger.info(f"{task_id} response cancelled")
+                        return ctx.to_response
 
                     if response:
                         return response
         except error.TerminationRequest as e:
+            logger.info(f"{task_id} request terminated")
             return e.response
 
     async def _to_response(
@@ -105,10 +103,6 @@ class Router:
             result
         ):
             ctx.response = result
-            return context.Response(
-                status_code=200,
-                headers=ctx.response_headers,
-                body=result,
-            )
+            return ctx.to_response
 
         return None

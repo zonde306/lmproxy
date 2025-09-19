@@ -1,8 +1,7 @@
-
 middleware:
   middlewares:
-    - class: 'middlewares.authorization.AuthorizationMiddleware'
-      token: '12345'
+    - class: "middlewares.authorization.AuthorizationMiddleware"
+      token: "12345"
 
 retry:
   wait_time: 0
@@ -10,16 +9,62 @@ retry:
 
 worker:
   workers:
-    - class: 'workers.akash.AkashWorker'
+    - class: "workers.akash.AkashWorker"
+      name: "akash-web"
       priority: 100
       models:
-        - 'DeepSeek-V3.1'
-        - 'AkashGen'
+        - "DeepSeek-V3.1"
+        - "AkashGen"
 
 proxy:
   local:
-    url: ''
+    class: "proxies.ProxyManager"
+    url: ""
     initial:
-      - 'socks5://127.0.0.1:1080'
-    retry_delay: 3
+      - "socks5://127.0.0.1:1080"
+    timeout: 9
     max_retries: 3
+
+logging:
+  version: 1
+  disable_existing_loggers: false
+
+  formatters:
+    fastapi_style:
+      format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+      datefmt: '%Y-%m-%d %H:%M:%S'
+    
+    default_style:
+      format: '%(levelname)s:    %(message)s'
+      datefmt: '%Y-%m-%d %H:%M:%S'
+
+  handlers:
+    console:
+      class: logging.StreamHandler
+      level: DEBUG
+      formatter: default_style
+      stream: ext://sys.stdout
+
+    file:
+      class: logging.handlers.RotatingFileHandler
+      level: WARNING
+      formatter: fastapi_style
+      filename: ../logs/app.log
+      maxBytes: 10485760  # 10MB
+      backupCount: 5
+      encoding: utf-8
+
+  root:
+    level: DEBUG
+    handlers: [console, file]
+
+  loggers:
+    uvicorn:
+      level: INFO
+      handlers: [console]
+      propagate: false
+    
+    blacksheep:
+      level: INFO
+      handlers: [console]
+      propagate: false

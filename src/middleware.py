@@ -1,7 +1,9 @@
 import typing
+import logging
 import context
 import loader
 
+logger = logging.getLogger(__name__)
 
 class Middleware:
     def __init__(self, settings: dict[str, typing.Any]) -> None:
@@ -43,10 +45,14 @@ class MiddlewareManager:
             if isinstance(middleware, str):
                 if middleware := loader.get_class(middleware):
                     middlewares.append([100, middleware()])
+                else:
+                    logger.error(f"middleware {middleware} not found")
             elif isinstance(middleware, dict):
                 if cls := loader.get_class(middleware.get("class", "")):
                     priority = middleware.get("priority", 100)
                     middlewares.append([priority, cls(middleware)])
+                else:
+                    logger.error(f"middleware {middleware} not found")
 
         middlewares.sort(key=lambda x: x[0], reverse=True)
         self.middlewares = [middleware[1] for middleware in middlewares]
