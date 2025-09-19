@@ -99,9 +99,7 @@ class OpenAiWorker(worker.Worker):
                                             break
                                         
                                         data = json.loads(content.decode(response.encoding or "utf-8"))
-                                        text = data["choices"][0]["delta"].get("content", None)
-                                        reasoning = data["choices"][0]["delta"].get("reasoning_content", None)
-                                        yield [ text, reasoning ]
+                                        yield await self._get_content(data)
                                 
                                 buffer = b""
 
@@ -124,9 +122,7 @@ class OpenAiWorker(worker.Worker):
                     assert response.ok, f"ERROR: {response.status} {await response.text()}"
 
                     data = await response.json()
-                    text = data["choices"][0]["message"].get("content", None)
-                    reasoning = data["choices"][0]["message"].get("reasoning_content", None)
-                    return [ text, reasoning ]
+                    return self._get_content(data)
 
     async def to_streaming(self, response: context.Text) -> context.Text:
         task = asyncio.create_task(response)
@@ -156,3 +152,10 @@ class OpenAiWorker(worker.Worker):
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
         body["stream"] = streaming
+    
+    async def _get_content(self, data: dict[str, typing.Any]) -> tuple[str | None, str | None]:
+        text = data["choices"][0].get("delta", {}).get("content", None) or\
+            data["choices"][0].get("message", {}).get("content", None)
+        reasoning = data["choices"][0].get("delta", {}).get("reasoning_content", None) or \
+            data["choices"][0].get("message", {}).get("reasoning_content", None)
+        return [ text, reasoning ]

@@ -43,4 +43,11 @@ class LongchatWorker(openai.OpenAiWorker):
 
         if api_key:
             headers["Cookie"] = api_key
+    
+    async def _get_content(self, data: dict[str, typing.Any]) -> tuple[str | None, str | None]:
+        text = data["choices"][0].get("delta", {}).get("content", None) or\
+            data["choices"][0].get("message", {}).get("content", None)
+        reasoning = data["choices"][0].get("delta", {}).get("reasoningContent", None) or \
+            data["choices"][0].get("message", {}).get("reasoningContent", None)
+        return [ text, reasoning ]
 
