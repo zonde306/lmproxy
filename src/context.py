@@ -1,3 +1,4 @@
+import copy
 import typing
 import dataclasses
 
@@ -37,14 +38,14 @@ class CountTokens(typing.TypedDict):
     content: int
 
 
-BodyType = Text | Image | Embedding | Audio | Video
+DeltaType = Text | Image | Embedding | Audio | Video
 
 
 @dataclasses.dataclass
 class Response:
     body: (
-        BodyType
-        | typing.AsyncGenerator[BodyType, None]
+        DeltaType
+        | typing.AsyncGenerator[DeltaType, None]
         | CountTokens
         | dict[str, typing.Any]
     )
@@ -58,8 +59,8 @@ class Context:
     body: dict[str, typing.Any]
     type: typing.Literal["text", "image", "audio", "embedding", "video"]
     response: (
-        BodyType
-        | typing.AsyncGenerator[BodyType, None]
+        DeltaType
+        | typing.AsyncGenerator[DeltaType, None]
         | CountTokens
         | dict[str, typing.Any]
         | None
@@ -83,7 +84,7 @@ class Context:
         return self.body.get("model", "")
 
     def payload(self, aliases: dict[str, str] = {}):
-        body = self.body.copy()
+        body = copy.deepcopy(self.body)
         model = body.get("model", None)
         if model in aliases:
             body["model"] = aliases[model]

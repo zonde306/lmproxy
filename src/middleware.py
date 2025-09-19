@@ -7,18 +7,25 @@ logger = logging.getLogger(__name__)
 
 
 class Middleware:
-    def __init__(self, settings: dict[str, typing.Any]) -> None:
+    def __init__(self, settings: dict[str, typing.Any], engine: typing.Any) -> None:
         self.settings = settings
+        self.engine = engine
 
     async def process_request(self, ctx: context.Context) -> bool | None:
         """
-        返回 False 以停止后续处理并立即返回
+        返回 False 以返回自定义 response
         """
         ...
 
     async def process_response(self, ctx: context.Context) -> bool | None:
         """
-        返回 False 以停止后续处理并立即返回
+        返回 False 以返回自定义 response
+        """
+        ...
+    
+    async def process_chunk(self, ctx: context.Context, chunk: context.DeltaType) -> bool | None:
+        """
+        返回 False 以阻止响应
         """
         ...
 
@@ -38,9 +45,10 @@ class Middleware:
 
 
 class MiddlewareManager:
-    def __init__(self, settings: dict[str, typing.Any]) -> None:
+    def __init__(self, settings: dict[str, typing.Any], engine: typing.Any) -> None:
         self.settings = settings
         self.middlewares: list[Middleware] = []
+        self._engine = engine
         self._setup_middlewares()
 
     def add_middleware(self, middleware: Middleware) -> None:
@@ -50,14 +58,14 @@ class MiddlewareManager:
         middlewares = []
         for middleware in self.settings.get("middlewares", []):
             if isinstance(middleware, str):
-                if middleware := loader.get_class(middleware):
-                    middlewares.append([100, middleware()])
+                if cls := loader.get_class(middleware):
+                    middlewares.append([100, cls({}, self._engine)])
                 else:
                     logger.error(f"middleware {middleware} not found")
             elif isinstance(middleware, dict):
                 if cls := loader.get_class(middleware.get("class", "")):
                     priority = middleware.get("priority", 100)
-                    middlewares.append([priority, cls(middleware)])
+                    middlewares.append([priority, cls(middleware, self._engine)])
                 else:
                     logger.error(f"middleware {middleware} not found")
 
@@ -74,6 +82,12 @@ class MiddlewareManager:
     async def process_response(self, ctx: context.Context) -> bool | None:
         for middleware in self.middlewares:
             if (await middleware.process_response(ctx)) is False:
+                return False
+        return True
+    
+    async def process_chunk(self, ctx: context.Context, chunk: context.DeltaType) -> bool | None:
+        for middleware in self.middlewares:
+            if (await middleware.process_chunk(ctx, chunk)) is False:
                 return False
         return True
 
