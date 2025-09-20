@@ -15,13 +15,13 @@ class Middleware:
 
     async def process_request(self, ctx: context.Context) -> typing.Literal[False] | None:
         """
-        返回 False 以返回自定义 response
+        返回 False 以停止中间件处理
         """
         ...
 
     async def process_response(self, ctx: context.Context) -> typing.Literal[False] | None:
         """
-        返回 False 以返回自定义 response
+        返回 False 以停止中间件处理
         """
         ...
     
@@ -35,7 +35,7 @@ class Middleware:
         self, ctx: context.Context, error: Exception, attempt: int
     ) -> typing.Literal[True] | None:
         """
-        返回 True 以吞掉异常
+        返回 True 处理异常
         """
         ...
 

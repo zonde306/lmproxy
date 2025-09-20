@@ -78,18 +78,14 @@ class Engine:
         task_id = ctx.metadata["task_id"] = uuid.uuid4().hex
 
         try:
-            if not await self.middleware.process_request(ctx):
-                logger.info(f"{task_id} request cancelled")
-                return ctx.to_response
+            await self.middleware.process_request(ctx)
 
             async for attempt in self.retries(ctx):
                 async with attempt:
                     logger.info(f"{task_id} start attempt {attempt.attempt_number}")
-                    response = await self._to_response(ctx, await callee(ctx))
+                    response = await self._create_response(ctx, await callee(ctx))
 
-                    if not await self.middleware.process_response(ctx):
-                        logger.info(f"{task_id} response cancelled")
-                        return ctx.to_response
+                    await self.middleware.process_response(ctx)
 
                     if response:
                         return response
@@ -98,7 +94,7 @@ class Engine:
             logger.info(f"{task_id} request terminated")
             return e.response
 
-    async def _to_response(
+    async def _create_response(
         self,
         ctx: context.Context,
         result: context.DeltaType | typing.AsyncGenerator[context.DeltaType, None],
@@ -120,13 +116,7 @@ class Engine:
         async def generate():
             async for chunk in streamer:
                 if chunk["type"] == "text":
-                    if ctx.metadata("stream_content", None) is None:
-                        ctx.metadata["stream_content"] = ""
-                    if ctx.metadata("stream_reasoning", None) is None:
-                        ctx.metadata["stream_reasoning"] = ""
-                    
-                    ctx.metadata["stream_content"] += chunk["content"] if chunk["content"] else ""
-                    ctx.metadata["stream_reasoning"] += chunk["reasoning"] if chunk["reasoning"] else ""
+                    self.concat_chunks(ctx, chunk)
 
                 try:
                     if not await self.middleware.process_chunk(ctx, chunk):
@@ -150,3 +140,43 @@ class Engine:
                 yield chunk
         
         return generate()
+    
+    async def concat_chunks(self, ctx: context.Context, chunk: context.DeltaType) -> context.DeltaType:
+        if not chunk:
+            return None
+        
+        if ctx.metadata.get("stream_content", None) is None:
+            ctx.metadata["stream_content"] = chunk
+            return chunk
+        
+        # 不考虑多个响应
+        combined : context.DeltaType = ctx.metadata["stream_content"]
+
+        if chunk["content"]:
+            if combined.get("content", None) is None:
+                combined["content"] = chunk["content"]
+            else:
+                combined["content"] += chunk["content"]
+        
+        if chunk["reasoning_content"]:
+            if combined.get("reasoning_content", None) is None:
+                combined["reasoning_content"] = chunk["reasoning_content"]
+            else:
+                combined["reasoning_content"] += chunk["reasoning_content"]
+        
+        if chunk["tool_calls"]:
+            if combined.get("tool_calls", None) is None:
+                combined["tool_calls"] = chunk["tool_calls"]
+            else:
+                tool_calls = combined["tool_calls"]
+                for call in chunk["tool_calls"]:
+                    index : int = call.get("index", 0)
+                    if index >= len(tool_calls):
+                        tool_calls.append(call)
+                    elif tool_calls[index]["function"].get("arguments", None) is None:
+                        tool_calls[index]["function"]["arguments"] = call["function"]["arguments"]
+                    else:
+                        # 只有 arguments 才会流式传输
+                        tool_calls[index]["function"]["arguments"] += call["function"]["arguments"]
+        
+        return combined

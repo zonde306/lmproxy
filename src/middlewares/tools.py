@@ -51,7 +51,7 @@ class ToolCallMiddleware(middleware.Middleware):
         
         results = await tool.execute_tool_calls(tool_calls, tool.AVAILABLE_FUNCTIONS)
         ctx.body["messages"].extend(results)
-
+        
         response = await self.engine.process_generate(ctx, self.engine.workers.generate_text)
         ctx.response = response.body
         ctx.status_code = response.status_code
