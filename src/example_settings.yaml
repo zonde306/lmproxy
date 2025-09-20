@@ -55,6 +55,16 @@ worker:
       priority: 100
       models:
         - "K2-Think"
+    
+    - class: "workers.ChatbotWorker"
+      name: "chatbot"
+      priority: 150
+      models:
+        - "grok-4-fast"
+        - "grok-4-fast-reasoning"
+      aliases:
+        grok-4-fast: "chat-model"
+        grok-4-fast-reasoning: "chat-model-reasoning"
 
 proxy:
   local:

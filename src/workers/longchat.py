@@ -45,7 +45,8 @@ class LongchatWorker(openai.OpenAiWorker):
         body["content"] = content
 
         if api_key:
-            headers["Cookie"] = api_key
+            headers["Cookie"] = f"passport_token_key={api_key}"
+        
 
     async def _parse_response(self, data: dict[str, typing.Any]) -> context.Text:
         text = data["choices"][0].get("delta", {}).get("content", None) or data[

@@ -61,6 +61,8 @@ class Worker:
                     proxies=[rnet.Proxy.all(proxy)] if proxy else None,
                     impersonate=rnet.Impersonate.Firefox139,
                     cookie_store=True,
+                    allow_redirects=True,
+                    max_redirects=9,
                 )
                 args.update(self.client_args)
                 client = rnet.Client(**args)

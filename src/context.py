@@ -106,7 +106,7 @@ class SystemMessage(typing.TypedDict):
 class UserMessage(typing.TypedDict):
     """用户消息"""
     role: typing.Literal["user"]
-    content: str
+    content: str | list["UserContentPart"]
 
 class ToolCallFunction(typing.TypedDict):
     """助手请求调用工具时，函数部分的具体信息"""
@@ -190,3 +190,21 @@ class ChatCompletionPayload(typing.TypedDict, total=False):
     tools: typing.List[Tool]
     tool_choice: ToolChoice
     user: str
+
+class TextContentPart(typing.TypedDict):
+    """用户消息中的文本内容部分"""
+    type: typing.Literal["text"]
+    text: str
+
+class ImageURL(typing.TypedDict):
+    """用户消息中图片 URL 的具体定义"""
+    url: str
+    detail: typing.Literal["auto", "low", "high"]
+
+class ImageContentPart(typing.TypedDict):
+    """用户消息中的图片内容部分"""
+    type: typing.Literal["image_url"]
+    image_url: ImageURL
+
+# 用户消息的内容可以是多种类型的组合
+UserContentPart = typing.Union[TextContentPart, ImageContentPart]

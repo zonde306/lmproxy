@@ -4,6 +4,7 @@ from .pollinations import PollinationsWorker
 from .longchat import LongchatWorker
 from .zai import ZaiWorker
 from .k2think import K2ThinkWorker
+from .chatbot import ChatbotWorker
 
 __all__ = [
     "AkashWorker",
@@ -12,4 +13,5 @@ __all__ = [
     "LongchatWorker",
     "ZaiWorker",
     "K2ThinkWorker",
+    "ChatbotWorker",
 ]

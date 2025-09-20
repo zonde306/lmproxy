@@ -49,7 +49,7 @@ class OpenAiWorker(worker.Worker):
 
     async def generate_text(self, context: context.Context) -> context.Text:
         if context.body.get("model") not in self.available_models:
-            raise error.WorkerModelUnsupportedError(
+            raise error.WorkerUnsupportedError(
                 f"Model {context.body['model']} not available"
             )
 
@@ -101,8 +101,13 @@ class OpenAiWorker(worker.Worker):
                                 for line in buffer.split(b"\n"):
                                     content = line.strip().removeprefix(b"data:")
                                     if content:
+                                        # SSE end
                                         if b"[DONE]" in content:
                                             break
+
+                                        # SSE commit
+                                        if content.startswith(b":"):
+                                            continue
 
                                         data = json.loads(
                                             content.decode(response.encoding or "utf-8")

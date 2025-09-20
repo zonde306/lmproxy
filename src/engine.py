@@ -141,7 +141,7 @@ class Engine:
         
         return generate()
     
-    async def concat_chunks(self, ctx: context.Context, chunk: context.DeltaType) -> context.DeltaType:
+    def concat_chunks(self, ctx: context.Context, chunk: context.DeltaType) -> context.DeltaType:
         if not chunk:
             return None
         

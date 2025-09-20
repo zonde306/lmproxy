@@ -14,7 +14,6 @@ class WorkerNoAvaliableError(WorkerError): ...
 
 class WorkerUnsupportedError(WorkerError): ...
 
-class WorkerModelUnsupportedError(WorkerError): ...
 
 class TerminationRequest(Exception):
     def __init__(self, response: context.Response) -> None:
@@ -25,8 +24,10 @@ class TerminationRequest(Exception):
 def worker_handler(ctx: context.Context, logger: logging.Logger, worker: str = ""):
     try:
         yield
+    except WorkerUnsupportedError:
+        ...
     except (WorkerError, NotImplementedError, AssertionError) as e:
-        logger.info(
+        logger.warning(
             f"{worker} unavaliable: {e} for model {ctx.body.get('model')}",
             extra={"context": ctx},
         )
