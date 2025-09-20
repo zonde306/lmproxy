@@ -30,9 +30,9 @@ class ChatbotWorker(worker.Worker):
         ) as response:
             assert isinstance(response, rnet.Response)
             if response.status == 429:
-                raise error.WorkerOverloadError(f"ERROR: {response.status}")
+                raise error.WorkerOverloadError(f"ERROR: {response.status} Too Many Requests")
 
-            assert response.ok, f"ERROR: {response.status} {await response.text()}"
+            assert response.ok, f"ERROR on refresh cookie: {response.status} {await response.text()}"
             data = await response.json()
             assert data is not None, "ERROR: invalid cookie"
 
@@ -49,9 +49,9 @@ class ChatbotWorker(worker.Worker):
         ) as response:
             assert isinstance(response, rnet.Response)
             if response.status == 429:
-                raise error.WorkerOverloadError(f"ERROR: {response.status}")
+                raise error.WorkerOverloadError(f"ERROR: {response.status} Too Many Requests")
 
-            assert response.ok, f"ERROR: {response.status} {await response.text()}"
+            assert response.ok, f"ERROR on fetch cookie: {response.status} {await response.text()}"
             self.update_cookie(client.get_cookies("https://demo.chat-sdk.dev/"))
             return True
 
@@ -86,13 +86,14 @@ class ChatbotWorker(worker.Worker):
                     headers=headers,
                 ) as response:
                     assert isinstance(response, rnet.Response)
+                    if response.status == 429:
+                        raise error.WorkerOverloadError(f"ERROR: {response.status} Too Many Requests")
+                    
                     assert response.ok, (
                         f"ERROR: {response.status} {await response.text()}"
                     )
                     self.update_cookie(client.get_cookies("https://demo.chat-sdk.dev/"))
-                    if response.status == 429:
-                        raise error.WorkerOverloadError(f"ERROR: {response.status}")
-
+                    
                     async with response.stream() as streamer:
                         assert isinstance(streamer, rnet.Streamer)
                         buffer = b""

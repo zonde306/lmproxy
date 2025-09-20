@@ -1,5 +1,6 @@
 import json
 import typing
+import logging
 import asyncio
 import urllib.parse
 import rnet
@@ -9,6 +10,7 @@ import context
 import error
 import resources
 
+logger = logging.getLogger(__name__)
 
 class OpenAiWorker(worker.Worker):
     def __init__(
@@ -27,7 +29,7 @@ class OpenAiWorker(worker.Worker):
         if key is not None:
             self.api_keys.append(key)
         self._resources = resources.ResourceManager(
-            self.api_keys, settings.get("lock_timeout", 60)
+            self.api_keys, **settings.get("key_manager", {})
         )
 
     async def models(self) -> list[str]:
@@ -177,6 +179,8 @@ class OpenAiWorker(worker.Worker):
     ) -> None:
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
+            logger.debug(f"Using API key: {api_key[:len(api_key) // 3]}...")
+        
         body["stream"] = streaming
 
     async def _parse_response(self, data: dict[str, typing.Any]) -> context.Text:
