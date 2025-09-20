@@ -65,6 +65,17 @@ worker:
       aliases:
         grok-4-fast: "chat-model"
         grok-4-fast-reasoning: "chat-model-reasoning"
+    
+    - class: "workers.OpenAiWorker"
+      name: "chatbot-starter"
+      models:
+        - "deepseek-chat"
+        - "deepseek-reasoner"
+      priority: 100
+      api_key: ""
+      models_url: ""
+      completions_url: "https://ai-chatbot-starter.edgeone.app/api/ai"
+      fake_streaming_interval: 10
 
 proxy:
   local:

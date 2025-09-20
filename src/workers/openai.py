@@ -2,7 +2,6 @@ import json
 import typing
 import logging
 import asyncio
-import urllib.parse
 import rnet
 import worker
 import proxies
@@ -33,6 +32,9 @@ class OpenAiWorker(worker.Worker):
         )
 
     async def models(self) -> list[str]:
+        if not self.models_url:
+            return self.available_models
+        
         reverse_aliases = dict(zip(self.aliases.values(), self.aliases.keys()))
 
         async with self._resources.get() as api_key:
@@ -44,8 +46,7 @@ class OpenAiWorker(worker.Worker):
                 headers["Authorization"] = f"Bearer {api_key}"
 
             async with self.client() as client:
-                url = urllib.parse.urljoin(self.models_url, "models")
-                async with await client.get(url, headers=headers) as response:
+                async with await client.get(self.models_url, headers=headers) as response:
                     data = await response.json()
                     return [reverse_aliases.get(x["id"], x["id"]) for x in data["data"]]
 
