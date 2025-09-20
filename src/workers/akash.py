@@ -45,11 +45,11 @@ class AkashWorker(worker.Worker):
 
     async def generate_text(self, ctx: context.Context) -> context.Text:
         if ctx.body.get("model") not in self.available_models:
-            raise error.WorkerUnsupportedError(
+            raise error.WorkerModelUnsupportedError(
                 f"Model {ctx.body['model']} not available"
             )
         if ctx.body.get("model") == "AkashGen":
-            raise error.WorkerUnsupportedError(
+            raise error.WorkerModelUnsupportedError(
                 f"Model {ctx.body['model']} for image generation only"
             )
 

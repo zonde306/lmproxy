@@ -41,7 +41,7 @@ class PollinationsWorker(openai.OpenAiWorker):
 
     async def generate_text(self, context: context.Context) -> context.Text:
         if context.model in self.image_models:
-            raise error.WorkerUnsupportedError(
+            raise error.WorkerModelUnsupportedError(
                 f"Model {context.body['model']} only available for text generation"
             )
 
@@ -49,7 +49,7 @@ class PollinationsWorker(openai.OpenAiWorker):
 
     async def generate_image(self, ctx: context.Context) -> context.Image:
         if ctx.body.model not in self.image_models:
-            raise error.WorkerUnsupportedError(
+            raise error.WorkerModelUnsupportedError(
                 f"Model {ctx.body['model']} not available for image generation"
             )
 

@@ -49,7 +49,7 @@ class OpenAiWorker(worker.Worker):
 
     async def generate_text(self, context: context.Context) -> context.Text:
         if context.body.get("model") not in self.available_models:
-            raise error.WorkerUnsupportedError(
+            raise error.WorkerModelUnsupportedError(
                 f"Model {context.body['model']} not available"
             )
 

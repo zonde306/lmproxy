@@ -5,25 +5,27 @@ import loader
 
 logger = logging.getLogger(__name__)
 
+if typing.TYPE_CHECKING:
+    import engine
 
 class Middleware:
-    def __init__(self, settings: dict[str, typing.Any], engine: typing.Any) -> None:
+    def __init__(self, settings: dict[str, typing.Any], engine: "engine.Engine") -> None:
         self.settings = settings
         self.engine = engine
 
-    async def process_request(self, ctx: context.Context) -> bool | None:
+    async def process_request(self, ctx: context.Context) -> typing.Literal[False] | None:
         """
         返回 False 以返回自定义 response
         """
         ...
 
-    async def process_response(self, ctx: context.Context) -> bool | None:
+    async def process_response(self, ctx: context.Context) -> typing.Literal[False] | None:
         """
         返回 False 以返回自定义 response
         """
         ...
     
-    async def process_chunk(self, ctx: context.Context, chunk: context.DeltaType) -> bool | None:
+    async def process_chunk(self, ctx: context.Context, chunk: context.DeltaType) -> typing.Literal[False] | None:
         """
         返回 False 以阻止响应
         """
@@ -31,7 +33,7 @@ class Middleware:
 
     async def process_error(
         self, ctx: context.Context, error: Exception, attempt: int
-    ) -> bool | None:
+    ) -> typing.Literal[True] | None:
         """
         返回 True 以吞掉异常
         """
@@ -45,7 +47,7 @@ class Middleware:
 
 
 class MiddlewareManager:
-    def __init__(self, settings: dict[str, typing.Any], engine: typing.Any) -> None:
+    def __init__(self, settings: dict[str, typing.Any], engine: "engine.Engine") -> None:
         self.settings = settings
         self.middlewares: list[Middleware] = []
         self._engine = engine
