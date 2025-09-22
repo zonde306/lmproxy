@@ -3,6 +3,7 @@ import json
 import typing
 import logging
 import asyncio
+import contextlib
 import rnet
 import worker
 import proxies
@@ -104,30 +105,32 @@ class OpenAiWorker(worker.Worker):
 
                         async with response.stream() as streamer:
                             assert isinstance(streamer, rnet.Streamer)
+                            
                             buffer = b""
-                            async for chunk in streamer:
-                                assert isinstance(chunk, bytes)
-                                buffer += chunk
-                                if not buffer.endswith(b"\n"):
-                                    continue
+                            with contextlib.suppress(rnet.DecodingError):
+                                async for chunk in streamer:
+                                    assert isinstance(chunk, bytes)
+                                    buffer += chunk
+                                    if not buffer.endswith(b"\n"):
+                                        continue
 
-                                for line in buffer.split(b"\n"):
-                                    content = line.strip().removeprefix(b"data:")
-                                    if content:
-                                        # SSE end
-                                        if b"[DONE]" in content:
-                                            break
+                                    for line in buffer.split(b"\n"):
+                                        content = line.strip().removeprefix(b"data:")
+                                        if content:
+                                            # SSE end
+                                            if b"[DONE]" in content:
+                                                break
 
-                                        # SSE commit
-                                        if content.startswith(b":"):
-                                            continue
+                                            # SSE commit
+                                            if content.startswith(b":"):
+                                                continue
 
-                                        data = json.loads(
-                                            content.decode(response.encoding or "utf-8")
-                                        )
-                                        yield await self._parse_response(data, ctx)
+                                            data = json.loads(
+                                                content.decode(response.encoding or "utf-8")
+                                            )
+                                            yield await self._parse_response(data, ctx)
 
-                                buffer = b""
+                                    buffer = b""
 
         return generate()
 

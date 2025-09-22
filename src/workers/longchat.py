@@ -35,14 +35,11 @@ class LongchatWorker(openai.OpenAiWorker):
     ) -> None:
         body["stream"] = streaming
 
-        if "-search" in body["model"]:
-            body["searchEnabled"] = int("-search" in body["model"])
-        if "-thinking" in body["model"]:
-            body["reasonEnabled"] = int("-thinking" in body["model"])
+        body["searchEnabled"] = int("-search" in body["model"])
+        body["reasonEnabled"] = int("-thinking" in body["model"])
 
-        body["reasonEnabled"] = 0
         body["regenerate"] = 0
-        body["model"] = "longcat-flash"
+        body.pop("model")
 
         content = ""
         for message in body["messages"]:
@@ -83,20 +80,20 @@ class LongchatWorker(openai.OpenAiWorker):
                 ctx.metadata["usage"] = usage
 
             # 移除重复的消息
-            if content:
+            if isinstance(content, str):
                 last_length = ctx.metadata.get(f"last_length_{type}", 0)
-                if last_length >= len(content):
+                if len(content) >= last_length:
                     ctx.metadata[f"last_length_{type}"] = len(content)
                     content = content[last_length:]
 
                 if type == "think":
                     return context.Text(
-                        type="text", content=None, reasoning_content=content
+                        type="text", content=None, reasoning_content=content, tool_calls=None
                     )
 
                 return context.Text(
-                    type="text", content=None, reasoning_content=content
+                    type="text", content=content, reasoning_content=None, tool_calls=None
                 )
 
         logger.error(f"Unknown longchat response: {data}")
-        return context.Text(type="text", content=None, reasoning_content=None)
+        return context.Text(type="text", content=None, reasoning_content=None, tool_calls=None)
