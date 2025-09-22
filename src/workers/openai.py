@@ -49,6 +49,10 @@ class OpenAiWorker(worker.Worker):
 
             async with self.client() as client:
                 async with await client.get(self.models_url, headers=headers) as response:
+                    assert isinstance(response, rnet.Response)
+                    assert response.ok, (
+                        f"ERROR: {response.status} {await response.text()} of {self.models_url}"
+                    )
                     data = await response.json()
                     return [
                         reverse_aliases.get(x["id"], x["id"])
@@ -95,7 +99,7 @@ class OpenAiWorker(worker.Worker):
                     ) as response:
                         assert isinstance(response, rnet.Response)
                         assert response.ok, (
-                            f"ERROR: {response.status} {await response.text()}"
+                            f"ERROR: {response.status} {await response.text()} of {self.completions_url}"
                         )
 
                         async with response.stream() as streamer:
@@ -142,7 +146,7 @@ class OpenAiWorker(worker.Worker):
                 ) as response:
                     assert isinstance(response, rnet.Response)
                     assert response.ok, (
-                        f"ERROR: {response.status} {await response.text()}"
+                        f"ERROR: {response.status} {await response.text()} of {self.completions_url}"
                     )
 
                     data = await response.json()
