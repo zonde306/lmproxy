@@ -1,3 +1,4 @@
+import re
 import json
 import typing
 import logging
@@ -30,6 +31,7 @@ class OpenAiWorker(worker.Worker):
         self._resources = resources.ResourceManager(
             self.api_keys, **settings.get("key_manager", {})
         )
+        self._filters : list[re.Pattern] = [ re.compile(f)  for f in settings.get("filters", [])]
 
     async def models(self) -> list[str]:
         if not self.models_url:
@@ -48,7 +50,11 @@ class OpenAiWorker(worker.Worker):
             async with self.client() as client:
                 async with await client.get(self.models_url, headers=headers) as response:
                     data = await response.json()
-                    return [reverse_aliases.get(x["id"], x["id"]) for x in data["data"]]
+                    return [
+                        reverse_aliases.get(x["id"], x["id"])
+                        for x in data["data"]
+                        if not self._filters or any(map(lambda f: f.match(x["id"]), self._filters))
+                    ]
 
     async def generate_text(self, context: context.Context) -> context.Text:
         if context.body.get("model") not in self.available_models:
