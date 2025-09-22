@@ -32,6 +32,7 @@ class LongchatWorker(openai.OpenAiWorker):
         body: dict[str, typing.Any],
         api_key: str,
         streaming: bool,
+        ctx: context.Context,
     ) -> None:
         body["stream"] = streaming
 

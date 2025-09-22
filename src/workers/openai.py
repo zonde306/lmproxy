@@ -92,7 +92,7 @@ class OpenAiWorker(worker.Worker):
 
                 headers = self.headers.copy()
                 body = ctx.payload(self.aliases)
-                await self._prepare_payload(headers, body, api_key, True)
+                await self._prepare_payload(headers, body, api_key, True, ctx)
 
                 async with self.client() as client:
                     async with await client.post(
@@ -141,7 +141,7 @@ class OpenAiWorker(worker.Worker):
 
             headers = self.headers.copy()
             body = ctx.payload(self.aliases)
-            await self._prepare_payload(headers, body, api_key, False)
+            await self._prepare_payload(headers, body, api_key, False, ctx)
 
             async with self.client() as client:
                 async with await client.post(
@@ -190,6 +190,7 @@ class OpenAiWorker(worker.Worker):
         body: dict[str, typing.Any],
         api_key: str,
         streaming: bool,
+        ctx: context.Context,
     ) -> None:
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"

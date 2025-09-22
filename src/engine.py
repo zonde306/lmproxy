@@ -164,12 +164,12 @@ class Engine:
             else:
                 combined["reasoning_content"] += chunk["reasoning_content"]
         
-        if chunk["tool_calls"]:
+        if calls := chunk.get("tool_calls"):
             if combined.get("tool_calls", None) is None:
-                combined["tool_calls"] = chunk["tool_calls"]
+                combined["tool_calls"] = calls
             else:
                 tool_calls = combined["tool_calls"]
-                for call in chunk["tool_calls"]:
+                for call in calls:
                     index : int = call.get("index", 0)
                     if index >= len(tool_calls):
                         tool_calls.append(call)
