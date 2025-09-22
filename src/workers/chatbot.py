@@ -112,7 +112,7 @@ class ChatbotWorker(worker.Worker):
                                     data = json.loads(
                                         content.decode(response.encoding or "utf-8")
                                     )
-                                    yield await self._parse_response(data)
+                                    yield await self._parse_response(data, ctx)
 
                             buffer = b""
 
@@ -220,7 +220,7 @@ class ChatbotWorker(worker.Worker):
 
         return [None, None]
 
-    async def _parse_response(self, data: dict[str, typing.Any]) -> context.Text:
+    async def _parse_response(self, data: dict[str, typing.Any], ctx: context.Context) -> context.Text:
         text = None
         if data.get("type", None) == "text-delta":
             text = data.get("delta", None)

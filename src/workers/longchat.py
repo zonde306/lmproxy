@@ -16,7 +16,12 @@ class LongchatWorker(openai.OpenAiWorker):
         self.headers = {"Referer": "https://longcat.chat/t"}
 
     async def models(self) -> list[str]:
-        return ["longcat-flash", "longcat-flash-search"]
+        return [
+            "longcat-flash",
+            "longcat-flash-search",
+            "longcat-flash-thinking",
+            "longcat-flash-thinking-search",
+        ]
 
     async def _prepare_payload(
         self,
@@ -27,14 +32,14 @@ class LongchatWorker(openai.OpenAiWorker):
     ) -> None:
         body["stream"] = streaming
 
-        if body["model"] == "longcat-flash-search":
-            body["model"] = "longcat-flash"
-            body["searchEnabled"] = 1
-        else:
-            body["searchEnabled"] = 0
+        if "-search" in body["model"]:
+            body["searchEnabled"] = int("-search" in body["model"])
+        if "-thinking" in body["model"]:
+            body["reasonEnabled"] = int("-thinking" in body["model"])
 
         body["reasonEnabled"] = 0
         body["regenerate"] = 0
+        body["model"] = "longcat-flash"
 
         content = ""
         for message in body["messages"]:
@@ -46,14 +51,21 @@ class LongchatWorker(openai.OpenAiWorker):
 
         if api_key:
             headers["Cookie"] = f"passport_token_key={api_key}"
-        
-
-    async def _parse_response(self, data: dict[str, typing.Any]) -> context.Text:
-        text = data["choices"][0].get("delta", {}).get("content", None) or data[
-            "choices"
-        ][0].get("message", {}).get("content", None)
-        reasoning = data["choices"][0].get("delta", {}).get(
-            "reasoningContent", None
-        ) or data["choices"][0].get("message", {}).get("reasoningContent", None)
+    
+    async def _parse_response(self, data: dict[str, typing.Any], ctx: context.Context) -> context.Text:
+        text = data["choices"][0].get("delta", {}).get("content", None) or\
+            data["choices"][0].get("message", {}).get("content", None)
+        type = data["choices"][0].get("delta", {}).get("type", None) or\
+            data["choices"][0].get("message", {}).get("type", None)
         tool_calls = data["choices"][0].get("tool_calls", None)
-        return context.Text(type="text", content=text, reasoning_content=reasoning, tool_calls=tool_calls)
+
+        # 去除重复的文本
+        last_length = ctx.metadata.get(f"last_length_{type}", 0)
+        if last_length >= len(text):
+            ctx.metadata[f"last_length_{type}"] = len(text)
+            text = text[last_length:]
+
+        if type == "think":
+            return context.Text(type="text", content=None, reasoning_content=text, tool_calls=tool_calls)
+        
+        return context.Text(type="text", content=text, reasoning_content=None, tool_calls=tool_calls)

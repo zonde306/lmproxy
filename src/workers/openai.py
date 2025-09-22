@@ -83,14 +83,14 @@ class OpenAiWorker(worker.Worker):
 
         return await self.no_streaming(context)
 
-    async def streaming(self, context: context.Context) -> context.Text:
+    async def streaming(self, ctx: context.Context) -> context.Text:
         async def generate() -> typing.AsyncGenerator[str, None]:
             async with self._resources.get() as api_key:
                 if api_key is None:
                     raise error.WorkerOverloadError("No API keys available")
 
                 headers = self.headers.copy()
-                body = context.payload(self.aliases)
+                body = ctx.payload(self.aliases)
                 await self._prepare_payload(headers, body, api_key, True)
 
                 async with self.client() as client:
@@ -125,19 +125,19 @@ class OpenAiWorker(worker.Worker):
                                         data = json.loads(
                                             content.decode(response.encoding or "utf-8")
                                         )
-                                        yield await self._parse_response(data)
+                                        yield await self._parse_response(data, ctx)
 
                                 buffer = b""
 
         return generate()
 
-    async def no_streaming(self, context: context.Context) -> context.Text:
+    async def no_streaming(self, ctx: context.Context) -> context.Text:
         async with self._resources.get() as api_key:
             if api_key is None:
                 raise error.WorkerOverloadError("No API keys available")
 
             headers = self.headers.copy()
-            body = context.payload(self.aliases)
+            body = ctx.payload(self.aliases)
             await self._prepare_payload(headers, body, api_key, False)
 
             async with self.client() as client:
@@ -150,7 +150,7 @@ class OpenAiWorker(worker.Worker):
                     )
 
                     data = await response.json()
-                    return await self._parse_response(data)
+                    return await self._parse_response(data, ctx)
 
     async def to_streaming(
         self, response: typing.Awaitable[context.Text]
@@ -194,7 +194,7 @@ class OpenAiWorker(worker.Worker):
         
         body["stream"] = streaming
 
-    async def _parse_response(self, data: dict[str, typing.Any]) -> context.Text:
+    async def _parse_response(self, data: dict[str, typing.Any], ctx: context.Context) -> context.Text:
         text = data["choices"][0].get("delta", {}).get("content", None) or data[
             "choices"
         ][0].get("message", {}).get("content", None)
