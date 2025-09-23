@@ -101,6 +101,7 @@ class AkashWorker(worker.Worker):
                                             ctx.metadata["usage"] = {
                                                 "prompt_tokens": usage.get("promptTokens", None),
                                                 "completion_tokens": usage.get("completionTokens", None),
+                                                "total_tokens": usage.get("promptTokens", 0) + usage.get("completionTokens", 0) or None,
                                             }
 
                             buffer = b""
