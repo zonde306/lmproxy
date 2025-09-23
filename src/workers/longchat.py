@@ -78,7 +78,11 @@ class LongchatWorker(openai.OpenAiWorker):
             usage = event.get("usage")
 
             if usage:
-                ctx.metadata["usage"] = usage
+                ctx.metadata["usage"] = {
+                    "prompt_tokens": usage.get("inputTokens", None),
+                    "completion_tokens": usage.get("outputTokens", None),
+                    "total_tokens": usage.get("totalTokens", None),
+                }
 
             # 移除重复的消息
             if isinstance(content, str):

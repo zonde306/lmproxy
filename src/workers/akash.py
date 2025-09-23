@@ -98,7 +98,10 @@ class AkashWorker(worker.Worker):
                                             )
                                     elif isinstance(data, dict):
                                         if usage := data.get("usage", None):
-                                            ctx.metadata["usage"] = usage
+                                            ctx.metadata["usage"] = {
+                                                "prompt_tokens": usage.get("promptTokens", None),
+                                                "completion_tokens": usage.get("completionTokens", None),
+                                            }
 
                             buffer = b""
 
