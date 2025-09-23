@@ -96,6 +96,9 @@ class AkashWorker(worker.Worker):
                                                 reasoning_content=data if reasoning else None,
                                                 tool_calls=None,
                                             )
+                                    elif isinstance(data, dict):
+                                        if usage := data.get("usage", None):
+                                            ctx.metadata["usage"] = usage
 
                             buffer = b""
 

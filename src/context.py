@@ -51,6 +51,7 @@ class Response:
     )
     status_code: int = 200
     headers: dict[str, str] = dataclasses.field(default_factory=dict)
+    metadata: dict[str, typing.Any] = dataclasses.field(default_factory=dict)
 
 @dataclasses.dataclass
 class Context:
@@ -76,17 +77,20 @@ class Context:
     def to_response(self) -> Response | None:
         if not self.response:
             return None
-        return Response(self.response, self.status_code, self.response_headers)
+        return Response(self.response, self.status_code, self.response_headers, self.metadata)
 
     @property
     def model(self) -> str:
         return self.body.get("model", "")
 
-    def payload(self, aliases: dict[str, str] = {}):
+    def payload(self, model_aliases: dict[str, str] = {}):
+        """
+        复制 body 并转换 model
+        """
         body = copy.deepcopy(self.body)
         model = body.get("model", None)
-        if model in aliases:
-            body["model"] = aliases[model]
+        if model in model_aliases:
+            body["model"] = model_aliases[model]
 
         return body
 

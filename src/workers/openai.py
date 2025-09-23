@@ -89,7 +89,7 @@ class OpenAiWorker(worker.Worker):
             async with self._resources.get() as api_key:
                 if api_key is None:
                     raise error.WorkerOverloadError("No API keys available")
-
+                
                 headers = self.headers.copy()
                 body = ctx.payload(self.aliases)
                 await self._prepare_payload(headers, body, api_key, True, ctx)
@@ -199,12 +199,13 @@ class OpenAiWorker(worker.Worker):
         body["stream"] = streaming
 
     async def _parse_response(self, data: dict[str, typing.Any], ctx: context.Context) -> context.Text:
-        text = data["choices"][0].get("delta", {}).get("content", None) or data[
-            "choices"
-        ][0].get("message", {}).get("content", None)
-        reasoning = data["choices"][0].get("delta", {}).get(
-            "reasoning_content", None
-        ) or data["choices"][0].get("message", {}).get("reasoning_content", None)
-        tool_calls = data["choices"][0].get("tool_calls", None)
+        if choices := data.get("choices"):
+            text = choices[0].get("delta", {}).get("content", None) or\
+                choices[0].get("message", {}).get("content", None)
+            reasoning = choices[0].get("delta", {}).get("reasoning_content", None) or\
+                choices[0].get("message", {}).get("reasoning_content", None)
+            tool_calls = choices[0].get("tool_calls", None)
+        if usage := data.get("usage", None):
+            ctx.metadata["usage"] = usage
         
         return context.Text(type="text", content=text, reasoning_content=reasoning, tool_calls=tool_calls)

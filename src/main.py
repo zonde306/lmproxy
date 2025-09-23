@@ -68,6 +68,28 @@ async def chat_completions(request: blacksheep.Request) -> blacksheep.Response:
                     separators=(",", ":"),
                 )
                 yield f"data: {data}\n\n".encode("utf-8")
+            
+            if usage := result.metadata.get("usage", None):
+                data = json.dumps(
+                    {
+                        "id": id,
+                        "object": "chat.completion.chunk",
+                        "created": int(time.time()),
+                        "model": payload.get("model", "unknown"),
+                        "choices": [{
+                            "index": 0,
+                            "delta": {
+                                "user": "assistant",
+                            },
+                            "finish_reason": "stop",
+                        }],
+                        "usage": usage,
+                    },
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+                yield f"data: {data}\n\n".encode("utf-8")
+
             yield b"data: [DONE]\n\n"
 
         return blacksheep.Response(
@@ -89,8 +111,10 @@ async def chat_completions(request: blacksheep.Request) -> blacksheep.Response:
                     {
                         "index": 0,
                         "message": result.body,
+                        "finish_reason": "stop",
                     }
                 ],
+                "usage": result.metadata.get("usage", None),
             }
         ),
     )

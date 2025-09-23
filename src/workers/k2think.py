@@ -13,7 +13,7 @@ class K2ThinkWorker(worker.Worker):
     ) -> None:
         super().__init__(settings, proxies)
         self.headers = {
-            "referer": "https://www.k2think.ai/guest/",
+            "referer": "https://www.k2think.ai/guest",
         }
         self.aliases = {
             "K2-Think": "MBZUAI-IFM/K2-Think",
@@ -75,8 +75,7 @@ class K2ThinkWorker(worker.Worker):
                                     data = json.loads(
                                         line.decode(response.encoding or "utf-8")
                                     )
-                                    text = data.get("content", "")
-                                    if text:
+                                    if text := data.get("content", ""):
                                         content, reasoning = self._parse_content(text)
                                         content = content[len(previous_content):]
                                         previous_content += content
@@ -89,6 +88,8 @@ class K2ThinkWorker(worker.Worker):
                                             reasoning_content=reasoning,
                                             tool_calls=None
                                         )
+                                    if usage := data.get("usage", None):
+                                        ctx.metadata["usage"] = usage
 
                             buffer = b""
 
