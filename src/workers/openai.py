@@ -13,6 +13,16 @@ import resources
 
 logger = logging.getLogger(__name__)
 
+RETRY_EXCEPTIONS = [
+    rnet.exceptions.StatusError,
+    rnet.exceptions.TimeoutError,
+    rnet.exceptions.ConnectionError,
+    rnet.exceptions.ConnectionResetError,
+    rnet.exceptions.UpgradeError,
+    rnet.exceptions.DNSResolverError,
+    AssertionError,
+]
+
 class OpenAiWorker(worker.Worker):
     def __init__(
         self, settings: dict[str, typing.Any], proxies: proxies.ProxyFactory
@@ -32,7 +42,9 @@ class OpenAiWorker(worker.Worker):
         self._resources = resources.ResourceManager(
             self.api_keys, **settings.get("key_manager", {})
         )
-        self._filters : list[re.Pattern] = [ re.compile(f)  for f in settings.get("filters", [])]
+        self._filters : list[re.Pattern] = [ re.compile(f)  for f in settings.get("filters", []) ]
+        self.max_retries = settings.get("max_retries", 3)
+        self.wait_time = settings.get("wait_time", 3)
 
     async def models(self) -> list[str]:
         if not self.models_url:
@@ -86,74 +98,90 @@ class OpenAiWorker(worker.Worker):
 
     async def streaming(self, ctx: context.Context) -> context.Text:
         async def generate() -> typing.AsyncGenerator[str, None]:
-            async with self._resources.get() as api_key:
-                if api_key is None:
-                    raise error.WorkerOverloadError("No API keys available")
-                
-                headers = self.headers.copy()
-                body = ctx.payload(self.aliases)
-                await self._prepare_payload(headers, body, api_key, True, ctx)
+            async for attempt in self._resources.get_retying(
+                self.max_retries, 
+                self.wait_time, 
+                RETRY_EXCEPTIONS
+            ):
+                try:
+                    async with attempt as api_key:
+                        if api_key is None:
+                            raise error.WorkerOverloadError("No API keys available")
+                        
+                        headers = self.headers.copy()
+                        body = ctx.payload(self.aliases)
+                        await self._prepare_payload(headers, body, api_key, True, ctx)
 
-                async with self.client() as client:
-                    async with await client.post(
-                        self.completions_url, json=body, headers=headers
-                    ) as response:
-                        assert isinstance(response, rnet.Response)
-                        assert response.ok, (
-                            f"ERROR: {response.status} {await response.text()} of {self.completions_url}"
-                        )
+                        async with self.client() as client:
+                            async with await client.post(
+                                self.completions_url, json=body, headers=headers
+                            ) as response:
+                                assert isinstance(response, rnet.Response)
+                                assert response.ok, (
+                                    f"ERROR: {response.status} {await response.text()} of {self.completions_url}"
+                                )
 
-                        async with response.stream() as streamer:
-                            assert isinstance(streamer, rnet.Streamer)
-                            
-                            buffer = b""
-                            with contextlib.suppress(rnet.DecodingError):
-                                async for chunk in streamer:
-                                    assert isinstance(chunk, bytes)
-                                    buffer += chunk
-                                    if not buffer.endswith(b"\n"):
-                                        continue
-
-                                    for line in buffer.split(b"\n"):
-                                        content = line.strip().removeprefix(b"data:")
-                                        if content:
-                                            # SSE end
-                                            if b"[DONE]" in content:
-                                                break
-
-                                            # SSE commit
-                                            if content.startswith(b":"):
+                                async with response.stream() as streamer:
+                                    assert isinstance(streamer, rnet.Streamer)
+                                    
+                                    buffer = b""
+                                    with contextlib.suppress(rnet.DecodingError):
+                                        async for chunk in streamer:
+                                            assert isinstance(chunk, bytes)
+                                            buffer += chunk
+                                            if not buffer.endswith(b"\n"):
                                                 continue
 
-                                            data = json.loads(
-                                                content.decode(response.encoding or "utf-8")
-                                            )
-                                            yield await self._parse_response(data, ctx)
+                                            for line in buffer.split(b"\n"):
+                                                content = line.strip().removeprefix(b"data:")
+                                                if content:
+                                                    # SSE end
+                                                    if b"[DONE]" in content:
+                                                        break
 
-                                    buffer = b""
+                                                    # SSE commit
+                                                    if content.startswith(b":"):
+                                                        continue
+
+                                                    data = json.loads(
+                                                        content.decode(response.encoding or "utf-8")
+                                                    )
+                                                    yield await self._parse_response(data, ctx)
+
+                                            buffer = b""
+                except resources.NoMoreResourceError as e:
+                    raise error.WorkerOverloadError("No API keys available") from e
 
         return generate()
 
     async def no_streaming(self, ctx: context.Context) -> context.Text:
-        async with self._resources.get() as api_key:
-            if api_key is None:
-                raise error.WorkerOverloadError("No API keys available")
+        async for attempt in self._resources.get_retying(
+            self.max_retries, 
+            self.wait_time, 
+            RETRY_EXCEPTIONS
+        ):
+            try:
+                async with attempt as api_key:
+                    if api_key is None:
+                        raise error.WorkerOverloadError("No API keys available")
 
-            headers = self.headers.copy()
-            body = ctx.payload(self.aliases)
-            await self._prepare_payload(headers, body, api_key, False, ctx)
+                    headers = self.headers.copy()
+                    body = ctx.payload(self.aliases)
+                    await self._prepare_payload(headers, body, api_key, False, ctx)
 
-            async with self.client() as client:
-                async with await client.post(
-                    self.completions_url, json=body, headers=headers
-                ) as response:
-                    assert isinstance(response, rnet.Response)
-                    assert response.ok, (
-                        f"ERROR: {response.status} {await response.text()} of {self.completions_url}"
-                    )
+                    async with self.client() as client:
+                        async with await client.post(
+                            self.completions_url, json=body, headers=headers
+                        ) as response:
+                            assert isinstance(response, rnet.Response)
+                            assert response.ok, (
+                                f"ERROR: {response.status} {await response.text()} of {self.completions_url}"
+                            )
 
-                    data = await response.json()
-                    return await self._parse_response(data, ctx)
+                            data = await response.json()
+                            return await self._parse_response(data, ctx)
+            except resources.NoMoreResourceError as e:
+                raise error.WorkerOverloadError("No API keys available") from e
 
     async def to_streaming(
         self, response: typing.Awaitable[context.Text]

@@ -4,6 +4,7 @@ import urllib.parse
 import proxies
 import context
 import error
+import resources
 from . import openai
 import rnet
 
@@ -18,6 +19,8 @@ class PollinationsWorker(openai.OpenAiWorker):
         super().__init__(settings, proxies)
         self.image_models: list[str] = []
         self.text_models: list[str] = []
+        self.max_retries = settings.get("max_retries", 3)
+        self.wait_time = settings.get("wait_time", 10)
 
     async def models(self) -> list[str]:
         reverse_aliases = dict(zip(self.aliases.values(), self.aliases.keys()))
@@ -65,28 +68,36 @@ class PollinationsWorker(openai.OpenAiWorker):
         if image := ctx.body.get("image", None):
             data["image"] = image
 
-        async with self._resources.get() as api_key:
-            if api_key is None:
-                raise error.WorkerOverloadError("No API keys available")
+        async for attempt in self._resources.get_retying(
+            self.max_retries, 
+            self.wait_time, 
+            [rnet.exceptions.StatusError, rnet.exceptions.TimeoutError, AssertionError]
+        ):
+            try:
+                async with attempt as api_key:
+                    if api_key is None:
+                        raise error.WorkerOverloadError("No API keys available")
 
-            headers = self.headers.copy()
-            if api_key:
-                headers["Authorization"] = f"Bearer {api_key}"
+                    headers = self.headers.copy()
+                    if api_key:
+                        headers["Authorization"] = f"Bearer {api_key}"
 
-            data["nologo"] = str(bool(api_key))
+                    data["nologo"] = str(bool(api_key))
 
-            async with self.client() as client:
-                async with await client.get(
-                    f"https://image.pollinations.ai/prompt/{prompt}?{urllib.parse.urlencode(data)}",
-                    json=ctx.body,
-                    headers=headers,
-                ) as response:
-                    assert isinstance(response, rnet.Response)
-                    assert response.ok, (
-                        f"ERROR: {response.status} {await response.text()}"
-                    )
+                    async with self.client() as client:
+                        async with await client.get(
+                            f"https://image.pollinations.ai/prompt/{prompt}?{urllib.parse.urlencode(data)}",
+                            json=ctx.body,
+                            headers=headers,
+                        ) as response:
+                            assert isinstance(response, rnet.Response)
+                            assert response.ok, (
+                                f"ERROR: {response.status} {await response.text()}"
+                            )
 
-                    binary = await response.bytes()
-                    return context.Image(
-                        type="image", content=binary, mime_type="image/jpeg"
-                    )
+                            binary = await response.bytes()
+                            return context.Image(
+                                type="image", content=binary, mime_type="image/jpeg"
+                            )
+            except resources.NoMoreResourceError as e:
+                raise error.WorkerOverloadError("No API keys available") from e
