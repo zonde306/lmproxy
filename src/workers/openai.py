@@ -64,7 +64,7 @@ class OpenAiWorker(worker.Worker):
                 async with await client.get(self.models_url, headers=headers) as response:
                     assert isinstance(response, rnet.Response)
                     assert response.ok, (
-                        f"ERROR: {response.status} {await response.text()} of {self.models_url}"
+                        f"ERROR: {response.status} {await response.text()} of {self.models_url} when {api_key[:len(api_key) // 3]}"
                     )
                     data = await response.json()
                     return [
@@ -74,9 +74,9 @@ class OpenAiWorker(worker.Worker):
                     ]
 
     async def generate_text(self, context: context.Context) -> context.Text:
-        if context.body.get("model") not in self.available_models:
+        if context.model not in self.available_models:
             raise error.WorkerUnsupportedError(
-                f"Model {context.body['model']} not available"
+                f"Model {context.model} not available"
             )
 
         force_streaming = self.settings.get("streaming", None)

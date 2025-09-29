@@ -45,15 +45,15 @@ class PollinationsWorker(openai.OpenAiWorker):
     async def generate_text(self, context: context.Context) -> context.Text:
         if context.model in self.image_models:
             raise error.WorkerUnsupportedError(
-                f"Model {context.body['model']} only available for text generation"
+                f"Model {context.model} only available for text generation"
             )
 
         return await super().generate_text(context)
 
     async def generate_image(self, ctx: context.Context) -> context.Image:
-        if ctx.body.model not in self.image_models:
+        if ctx.model not in self.image_models:
             raise error.WorkerUnsupportedError(
-                f"Model {ctx.body['model']} not available for image generation"
+                f"Model {ctx.model} not available for image generation"
             )
 
         prompt = urllib.parse.quote(ctx.body.get("prompt", ""), safe="")

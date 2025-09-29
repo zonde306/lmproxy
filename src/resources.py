@@ -27,7 +27,7 @@ class ResourceManager:
         self._next_index = 0
 
     async def get_retying(
-        self, 
+        self,
         stop: int = 3, 
         wait: float = 1.5, 
         exceptions: List[Type[BaseException]] | tuple[Type[BaseException]] = [ Exception ], 

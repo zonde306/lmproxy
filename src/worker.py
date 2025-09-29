@@ -23,7 +23,7 @@ class Worker:
         self.available_models: list[str] = settings.get("models", [])
         self.aliases: dict[str, str] = settings.get("aliases", {})
         self.client_args: http_client.ClientOptions = {}
-        self.name = settings.get("name", self.__class__.__name__)
+        self.name : str = settings.get("name", self.__class__.__name__)
 
     async def models(self) -> list[str]:
         return []
@@ -108,18 +108,19 @@ class WorkerManager:
         models = await asyncio.gather(*[ x.models() for x in self.workers ])
         [ x.available_models.extend(models[i]) for i, x in enumerate(self.workers) ]
         avaliable_models = sorted(set(itertools.chain.from_iterable(models)), key=lambda x: x.lower())
-        logger.info(f"available models: {avaliable_models}")
+        logger.info(f"available models: { { x.name: x.available_models for x in self.workers } }")
         return avaliable_models
 
-    async def generate_text(self, context: context.Context) -> context.Text:
+    async def generate_text(self, ctx: context.Context) -> context.Text:
         async def generate():
             for worker in self.workers:
-                with error.worker_handler(context, logger, worker):
-                    logger.debug(f"model: {context.model}, worker: {worker}")
-                    result = await worker.generate_text(context)
+                with error.worker_handler(ctx, logger, worker):
+                    logger.debug(f"worker: {worker}, model: {ctx.model}")
+                    result = await worker.generate_text(ctx)
 
                     # 非流式未发生异常直接返回
                     if not inspect.isasyncgen(result):
+                        ctx.metadata["worker"] = worker.name
                         return result
                     
                     # 等待第一个结果或者异常
@@ -133,9 +134,11 @@ class WorkerManager:
                             # 因为已经发送了第一个块，所以之后的异常无法处理
                             async for chunk in result:
                                 yield chunk
+                    
+                    ctx.metadata["worker"] = worker.name
                     return continue_generate()
 
-            raise error.WorkerError("No avaliable workers")
+            raise error.WorkerError(f"No avaliable workers for {ctx.model}")
         
         return await generate()
 

@@ -59,9 +59,9 @@ class ChatbotWorker(worker.Worker):
         return ["grok-4-fast", "grok-4-fast-reasoning"]
 
     async def generate_text(self, ctx: context.Context) -> context.Text:
-        if ctx.body.get("model") not in self.available_models:
+        if ctx.model not in self.available_models:
             raise error.WorkerUnsupportedError(
-                f"Model {ctx.body['model']} not available"
+                f"Model {ctx.model} not available"
             )
 
         payload = {

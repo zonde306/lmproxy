@@ -24,16 +24,19 @@ class TerminationRequest(Exception):
 def worker_handler(ctx: context.Context, logger: logging.Logger, worker: str = ""):
     try:
         yield
-    except WorkerUnsupportedError:
-        ...
+    except WorkerUnsupportedError as e:
+        logger.debug(
+            f"{worker} unsupported: {e} for model {ctx.model}",
+            extra={"context": ctx},
+        )
     except (WorkerError, NotImplementedError, AssertionError) as e:
         logger.warning(
-            f"{worker} unavaliable: {e} for model {ctx.body.get('model')}",
+            f"{worker} unavaliable: {e} for model {ctx.model}",
             extra={"context": ctx},
         )
     except Exception as e:
         logger.critical(
-            f"{worker} error: {e} for model {ctx.body.get('model')}",
+            f"{worker} error: {e} for model {ctx.model}",
             exc_info=True,
             extra={"context": ctx},
         )

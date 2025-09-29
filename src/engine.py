@@ -82,7 +82,7 @@ class Engine:
 
             async for attempt in self.retries(ctx):
                 async with attempt:
-                    logger.info(f"{task_id} start attempt {attempt.attempt_number}")
+                    logger.info(f"{task_id} start attempt {attempt.attempt_number} stream={ctx.body.get('stream', False)}")
                     response = await self._create_response(ctx, await callee(ctx))
 
                     await self.middleware.process_response(ctx)

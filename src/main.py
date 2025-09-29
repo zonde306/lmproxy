@@ -6,7 +6,6 @@ import inspect
 import blacksheep
 import engine
 import conf
-import context
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +32,17 @@ async def models(request: blacksheep.Request) -> blacksheep.Response:
                 }
                 for x in data
             ],
+            # OLlama compatibility
+            "models": [
+                {
+                    "name": x,
+                    "modified_at": "",
+                    "size": 0,
+                    "digest": "",
+                    "details": {},
+                }
+                for x in data
+            ]
         }
     )
 
@@ -84,6 +94,7 @@ async def chat_completions(request: blacksheep.Request) -> blacksheep.Response:
                             "finish_reason": "stop",
                         }],
                         "usage": usage,
+                        "worker": result.metadata.get("worker", "unknown"),
                     },
                     ensure_ascii=False,
                     separators=(",", ":"),
@@ -115,6 +126,7 @@ async def chat_completions(request: blacksheep.Request) -> blacksheep.Response:
                     }
                 ],
                 "usage": result.metadata.get("usage", None),
+                "worker": result.metadata.get("worker", "unknown"),
             }
         ),
     )
