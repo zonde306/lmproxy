@@ -7,6 +7,7 @@ import worker
 import proxies
 import context
 import error
+import resources
 
 
 class AkashWorker(worker.Worker):
@@ -17,14 +18,26 @@ class AkashWorker(worker.Worker):
         self.headers = {
             "referer": "https://chat.akash.network/",
         }
+        self.api_keys = settings.get("api_keys", [])
+        key = settings.get("api_key")
+        if key is not None:
+            self.api_keys.append(key)
+        self._resources = resources.ResourceManager(
+            self.api_keys, **settings.get("key_manager", {})
+        )
 
     async def _client_created(self, client: rnet.Client) -> bool:
-        async with await client.get(
-            "https://chat.akash.network/api/auth/session/", headers=self.headers
-        ) as response:
-            assert isinstance(response, rnet.Response)
-            assert response.ok, f"ERROR: {response.status} {await response.text()}"
-            data = await response.json()
+        async with self._resources.get() as session:
+            if session:
+                client.set_cookie("https://chat.akash.network/", rnet.Cookie(name="appSession", value=session))
+                print(f"Use session cookie: {session[:len(session) // 9]}...")
+
+            async with await client.get(
+                "https://chat.akash.network/api/auth/session/", headers=self.headers
+            ) as response:
+                assert isinstance(response, rnet.Response)
+                assert response.ok, f"ERROR: {response.status} {await response.text()}"
+                data = await response.json()
 
         return data.get("success", False)
 
@@ -57,7 +70,7 @@ class AkashWorker(worker.Worker):
             async with self.client() as client:
                 async with await client.post(
                     "https://chat.akash.network/api/chat/",
-                    json=ctx.payload(self.aliases),
+                    json=ctx.payload(self.settings),
                     headers=self.headers,
                 ) as response:
                     assert isinstance(response, rnet.Response)

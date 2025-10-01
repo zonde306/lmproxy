@@ -104,9 +104,11 @@ class WorkerManager:
 
     @cache.ttl_cache(300)
     async def models(self) -> list[str]:
-        [ x.available_models.clear() for x in self.workers ]
         models = await asyncio.gather(*[ x.models() for x in self.workers ])
-        [ x.available_models.extend(models[i]) for i, x in enumerate(self.workers) ]
+        [
+            (x.available_models.clear(), x.available_models.extend(models[i]))
+            for i, x in enumerate(self.workers)
+        ]
         avaliable_models = sorted(set(itertools.chain.from_iterable(models)), key=lambda x: x.lower())
         logger.info(f"available models: { { x.name: x.available_models for x in self.workers } }")
         return avaliable_models

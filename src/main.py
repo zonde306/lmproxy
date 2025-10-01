@@ -72,7 +72,10 @@ async def chat_completions(request: blacksheep.Request) -> blacksheep.Response:
                         "object": "chat.completion.chunk",
                         "created": int(time.time()),
                         "model": payload.get("model", "unknown"),
-                        "choices": [{"index": 0, "delta": delta}],
+                        "choices": [{
+                            "index": 0,
+                            "delta": delta,
+                        }],
                     },
                     ensure_ascii=False,
                     separators=(",", ":"),

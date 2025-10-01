@@ -77,20 +77,31 @@ class Context:
     def to_response(self) -> Response | None:
         if not self.response:
             return None
+        
+        if isinstance(self.response, dict):
+            self.response["role"] = "assistant"
         return Response(self.response, self.status_code, self.response_headers, self.metadata)
 
     @property
     def model(self) -> str:
         return self.body.get("model", "")
 
-    def payload(self, model_aliases: dict[str, str] = {}):
+    def payload(self, settings: dict[str, typing.Any] = {}):
         """
-        复制 body 并转换 model
+        复制 body
         """
         body = copy.deepcopy(self.body)
-        model = body.get("model", None)
-        if model in model_aliases:
-            body["model"] = model_aliases[model]
+        if aliases := settings.get("aliases", {}):
+            model = body.get("model", None)
+            if model in aliases:
+                body["model"] = aliases[model]
+        
+        if overrides := settings.get("overrides", {}):
+            for key, val in overrides.items():
+                if val is None and key in body[key]:
+                    del body[key]
+                elif val is not None:
+                    body[key] = val
 
         return body
 

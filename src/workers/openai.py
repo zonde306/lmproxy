@@ -109,7 +109,7 @@ class OpenAiWorker(worker.Worker):
                             raise error.WorkerOverloadError("No API keys available")
                         
                         headers = self.headers.copy()
-                        body = ctx.payload(self.aliases)
+                        body = ctx.payload(self.settings)
                         await self._prepare_payload(headers, body, api_key, True, ctx)
 
                         async with self.client() as client:
@@ -166,7 +166,7 @@ class OpenAiWorker(worker.Worker):
                         raise error.WorkerOverloadError("No API keys available")
 
                     headers = self.headers.copy()
-                    body = ctx.payload(self.aliases)
+                    body = ctx.payload(self.settings)
                     await self._prepare_payload(headers, body, api_key, False, ctx)
 
                     async with self.client() as client:

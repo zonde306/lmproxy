@@ -43,7 +43,7 @@ class K2ThinkWorker(worker.Worker):
             )
         
         async def generate():
-            payload = ctx.payload(self.aliases)
+            payload = ctx.payload(self.settings)
             payload["params"] = {}
             payload["stream"] = True
 
