@@ -41,6 +41,13 @@ class PollinationsWorker(openai.OpenAiWorker):
                 ]
 
         return self.image_models + self.text_models
+    
+    async def supports_model(self, model: str, type: str) -> bool:
+        if type == "text":
+            return model in self.text_models
+        elif type == "image":
+            return model in self.image_models
+        return False
 
     async def generate_text(self, context: context.Context) -> context.Text:
         if context.model in self.image_models:

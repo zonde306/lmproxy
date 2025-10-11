@@ -34,6 +34,20 @@ class ZaiWorker(openai.OpenAiWorker):
             "GLM-4.5v-thinking",
         ]
     
+    async def supports_model(self, model: str, type: str) -> bool:
+        return type == "text" and model in {
+            "GLM-4.5",
+            "GLM-4.5-thinking",
+            "GLM-4.5-search",
+            "GLM-4.5-search-thinking",
+            "GLM-4.5-Air",
+            "GLM-4.5-Air-thinking",
+            "GLM-4.5-Air-search",
+            "GLM-4.5-Air-search-thinking",
+            "GLM-4.5v",
+            "GLM-4.5v-thinking",
+        }
+    
     async def create_token(self):
         async with self.client() as client:
             async with await client.get("https://chat.z.ai/api/v1/auths/") as response:

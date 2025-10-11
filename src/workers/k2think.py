@@ -36,12 +36,10 @@ class K2ThinkWorker(worker.Worker):
                     if x["status"] == "active"
                 ]
     
+    async def supports_model(self, model: str, type: str) -> bool:
+        return type == "text" and model == "K2-Think"
+    
     async def generate_text(self, ctx: context.Context) -> context.Text:
-        if ctx.model not in self.available_models:
-            raise error.WorkerUnsupportedError(
-                f"Model {ctx.model} not available"
-            )
-        
         async def generate():
             payload = ctx.payload(self.settings)
             payload["params"] = {}

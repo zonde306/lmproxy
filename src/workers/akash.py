@@ -55,17 +55,15 @@ class AkashWorker(worker.Worker):
                     for x in await response.json()
                     if x["available"]
                 ]
+    
+    async def supports_model(self, model: str, type: str) -> bool:
+        if type == "text":
+            return model in self.available_models
+        elif type == "image":
+            return model == "AkashGen"
+        return False
 
     async def generate_text(self, ctx: context.Context) -> context.Text:
-        if ctx.model not in self.available_models:
-            raise error.WorkerUnsupportedError(
-                f"Model {ctx.model} not available"
-            )
-        if ctx.model == "AkashGen":
-            raise error.WorkerUnsupportedError(
-                f"Model {ctx.model} for image generation only"
-            )
-
         async def generate():
             async with self.client() as client:
                 async with await client.post(

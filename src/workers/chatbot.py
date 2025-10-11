@@ -57,6 +57,11 @@ class ChatbotWorker(worker.Worker):
 
     async def models(self) -> list[str]:
         return ["grok-4-fast", "grok-4-fast-reasoning"]
+    
+    async def supports_model(self, model: str, type: str) -> bool:
+        if type == "text":
+            return model in { "grok-4-fast", "grok-4-fast-reasoning" }
+        return False
 
     async def generate_text(self, ctx: context.Context) -> context.Text:
         if ctx.model not in self.available_models:

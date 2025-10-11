@@ -141,7 +141,7 @@ class WorkerManager:
                         return result
                     
                     # 等待第一个结果或者异常
-                    first_chunk = await anext(result, None)
+                    first_chunk = await anext(result, None)  # noqa: F821
 
                     # 流式开始时未发生异常
                     async def continue_generate():

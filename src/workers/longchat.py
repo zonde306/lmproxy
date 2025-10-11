@@ -25,6 +25,14 @@ class LongchatWorker(openai.OpenAiWorker):
             "longcat-flash-thinking",
             "longcat-flash-thinking-search",
         ]
+    
+    async def supports_model(self, model: str, type: str) -> bool:
+        return type == "text" and model in {
+            "longcat-flash",
+            "longcat-flash-search",
+            "longcat-flash-thinking",
+            "longcat-flash-thinking-search",
+        }
 
     async def _prepare_payload(
         self,
