@@ -16,7 +16,9 @@ logger = logging.getLogger(__name__)
 
 class Worker:
     def __init__(
-        self, settings: dict[str, typing.Any], proxies: proxies.ProxyFactory
+        self,
+        settings: dict[str, typing.Any],
+        proxies: proxies.ProxyFactory
     ) -> None:
         self.settings = settings
         self._proxies = proxies
@@ -25,8 +27,15 @@ class Worker:
         self.client_args: http_client.ClientOptions = {}
         self.name : str = settings.get("name", self.__class__.__name__)
 
+        # 初始列表总是允许
+        self._initial_available_models = set(self.available_models)
+
     async def models(self) -> list[str]:
-        return []
+        # 有序列表
+        return self.available_models
+    
+    async def supports_model(self, model: str, type: typing.Literal["text", "image", "audio", "embedding", "video"]) -> bool:
+        return model in self._initial_available_models or model in self.available_models
 
     async def generate_text(self, context: context.Context) -> context.Text:
         raise NotImplementedError
@@ -78,7 +87,9 @@ class Worker:
 
 class WorkerManager:
     def __init__(
-        self, settings: dict[str, typing.Any], proxies: proxies.ProxyFactory
+        self,
+        settings: dict[str, typing.Any],
+        proxies: proxies.ProxyFactory
     ) -> None:
         self.settings = settings
         self.workers: list[Worker] = []
@@ -114,10 +125,14 @@ class WorkerManager:
         return avaliable_models
 
     async def generate_text(self, ctx: context.Context) -> context.Text:
+        # 必须使用函数，否则会发生错误
         async def generate():
             for worker in self.workers:
                 with error.worker_handler(ctx, logger, worker):
-                    logger.debug(f"worker: {worker}, model: {ctx.model}")
+                    if not await worker.supports_model(ctx.model, "text"):
+                        continue
+
+                    logger.debug(f"worker: {worker}, model: {ctx.model}, type: text")
                     result = await worker.generate_text(ctx)
 
                     # 非流式未发生异常直接返回
@@ -133,7 +148,7 @@ class WorkerManager:
                         if first_chunk is not None:
                             yield first_chunk
 
-                            # 因为已经发送了第一个块，所以之后的异常无法处理
+                            # 因为已经发送了第一个块，所以之后的异常由外部处理
                             async for chunk in result:
                                 yield chunk
                     
@@ -144,42 +159,57 @@ class WorkerManager:
         
         return await generate()
 
-    async def generate_image(self, context: context.Context) -> context.Image:
+    async def generate_image(self, ctx: context.Context) -> context.Image:
         for worker in self.workers:
-            with error.worker_handler(context, logger, worker):
-                logger.debug(f"model: {context.model}, worker: {worker}")
-                return await worker.generate_image(context)
+            with error.worker_handler(ctx, logger, worker):
+                if not await worker.supports_model(ctx.model, "text"):
+                    continue
+                
+                logger.debug(f"model: {ctx.model}, worker: {worker}, type: image")
+                return await worker.generate_image(ctx)
 
         raise error.WorkerError("No avaliable workers")
 
-    async def generate_audio(self, context: context.Context) -> context.Audio:
+    async def generate_audio(self, ctx: context.Context) -> context.Audio:
         for worker in self.workers:
-            with error.worker_handler(context, logger, worker):
-                logger.debug(f"model: {context.model}, worker: {worker}")
-                return await worker.generate_audio(context)
+            with error.worker_handler(ctx, logger, worker):
+                if not await worker.supports_model(ctx.model, "text"):
+                    continue
+
+                logger.debug(f"model: {ctx.model}, worker: {worker}, type: audio")
+                return await worker.generate_audio(ctx)
 
         raise error.WorkerError("No avaliable workers")
 
-    async def generate_embedding(self, context: context.Context) -> context.Embedding:
+    async def generate_embedding(self, ctx: context.Context) -> context.Embedding:
         for worker in self.workers:
-            with error.worker_handler(context, logger, worker):
-                logger.debug(f"model: {context.model}, worker: {worker}")
-                return await worker.generate_embedding(context)
+            with error.worker_handler(ctx, logger, worker):
+                if not await worker.supports_model(ctx.model, "text"):
+                    continue
+
+                logger.debug(f"model: {ctx.model}, worker: {worker}, type: embedding")
+                return await worker.generate_embedding(ctx)
 
         raise error.WorkerError("No avaliable workers")
 
-    async def generate_video(self, context: context.Context) -> context.Video:
+    async def generate_video(self, ctx: context.Context) -> context.Video:
         for worker in self.workers:
-            with error.worker_handler(context, logger, worker):
-                logger.debug(f"model: {context.model}, worker: {worker}")
-                return await worker.generate_video(context)
+            with error.worker_handler(ctx, logger, worker):
+                if not await worker.supports_model(ctx.model, "text"):
+                    continue
+
+                logger.debug(f"model: {ctx.model}, worker: {worker}, type: video")
+                return await worker.generate_video(ctx)
 
         raise error.WorkerError("No avaliable workers")
 
-    async def count_tokens(self, context) -> context.CountTokens:
+    async def count_tokens(self, ctx: context.Context) -> context.CountTokens:
         for worker in self.workers:
-            with error.worker_handler(context, logger, worker):
-                logger.debug(f"model: {context.model}, worker: {worker}")
-                return await worker.count_tokens(context)
+            with error.worker_handler(ctx, logger, worker):
+                if not await worker.supports_model(ctx.model, "text"):
+                    continue
+
+                logger.debug(f"model: {ctx.model}, worker: {worker}, type: count_tokens")
+                return await worker.count_tokens(ctx)
 
         return -1

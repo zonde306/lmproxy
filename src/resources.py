@@ -125,7 +125,6 @@ class ResourceManager:
                     except asyncio.TimeoutError:
                         raise NoMoreResourceError(f"Timed out after {timeout}s waiting for a new resource.") from None
 
-    # ... (其他方法 _get_resource_round_robin, _release_resource 等保持不变)
     def get(self, timeout: Optional[float] = None):
         effective_timeout = timeout if timeout is not None else self._default_timeout
         return ResourceLock(self, effective_timeout)

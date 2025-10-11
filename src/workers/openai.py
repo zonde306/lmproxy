@@ -227,7 +227,7 @@ class OpenAiWorker(worker.Worker):
         body["stream"] = streaming
 
     async def _parse_response(self, data: dict[str, typing.Any], ctx: context.Context) -> context.Text:
-        if choices := data.get("choices"):
+        if choices := data.get("choices", []):
             text = choices[0].get("delta", {}).get("content", None) or\
                 choices[0].get("message", {}).get("content", None)
             reasoning = choices[0].get("delta", {}).get("reasoning_content", None) or\
