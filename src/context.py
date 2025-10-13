@@ -4,6 +4,7 @@ import dataclasses
 
 
 class Text(typing.TypedDict):
+    role: str | None = None
     type: typing.Literal["text"] = "text"
     content: str | None = None
     reasoning_content: str | None = None
@@ -11,29 +12,34 @@ class Text(typing.TypedDict):
 
 
 class Image(typing.TypedDict):
+    role: str | None = None
     type: typing.Literal["image"] = "image"
     content: bytes
     mime_type: str
 
 
 class Embedding(typing.TypedDict):
+    role: str | None = None
     type: typing.Literal["embedding"] = "embedding"
     content: list[float]
 
 
 class Audio(typing.TypedDict):
+    role: str | None = None
     type: typing.Literal["audio"] = "audio"
     content: bytes
     mime_type: str
 
 
 class Video(typing.TypedDict):
+    role: str | None = None
     type: typing.Literal["video"] = "video"
     content: bytes
     mime_type: str
 
 
 class CountTokens(typing.TypedDict):
+    role: str | None = None
     type: typing.Literal["count_tokens"] = "count_tokens"
     content: int
 

@@ -1,5 +1,9 @@
 from .authorization import AuthorizationMiddleware
+from .tools import ToolCallMiddleware
+from .inject import InjectMiddleware
 
 __all__ = [
-    "AuthorizationMiddleware"
+    "AuthorizationMiddleware",
+    "ToolCallMiddleware",
+    "InjectMiddleware",
 ]
