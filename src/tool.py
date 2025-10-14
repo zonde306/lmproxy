@@ -1,8 +1,11 @@
 import json
+import logging
 import asyncio
 import inspect
 from enum import Enum
 from typing import Any, Callable, Dict, List, get_origin, get_args, Literal
+
+logger = logging.getLogger(__name__)
 
 # 全局变量
 OPENAI_TOOLS = []
@@ -38,11 +41,7 @@ async def execute_tool_calls(
                 if inspect.iscoroutinefunction(function_to_call):
                     function_response = await function_to_call(**function_args)
                 else:
-                    # 在线程池中运行同步函数，避免阻塞事件循环
-                    loop = asyncio.get_running_loop()
-                    function_response = await loop.run_in_executor(
-                        None, lambda: function_to_call(**function_args)
-                    )
+                    function_response = function_to_call(**function_args)
 
                 # 序列化为 JSON 字符串
                 response_content = json.dumps(
@@ -51,6 +50,7 @@ async def execute_tool_calls(
 
             except Exception as e:
                 response_content = f"Error: {str(e)}"
+                logger.error(f"工具调用失败: {tool_call}", exc_info=True)
 
         return {
             "tool_call_id": tool_call.get("id", None),

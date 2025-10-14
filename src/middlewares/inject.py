@@ -31,7 +31,8 @@ class Insertion(typing.TypedDict):
 
 class InjectMiddleware(middleware.Middleware):
     async def process_request(self, ctx: context.Context) -> None:
-        self.insert(ctx.body["messages"], self.settings.get("insertions", []))
+        if ctx.type == "text":
+            self.insert(ctx.body["messages"], self.settings.get("insertions", []))
     
     def insert(self, messages: list[Text], insertions: list[Insertion]) -> None:
         """

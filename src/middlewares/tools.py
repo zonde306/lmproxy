@@ -11,6 +11,9 @@ logger = logging.getLogger(__name__)
 
 class ToolCallMiddleware(middleware.Middleware):
     async def process_request(self, ctx: context.Context) -> bool | None:
+        if ctx.type != "text":
+            return
+
         if ctx.body.get("tools", None):
             ctx.body["tools"] = []
         

@@ -1,5 +1,8 @@
+import logging
 import asyncio
 from typing import List, Any, Optional, AsyncIterator, Type, Tuple
+
+logger = logging.getLogger(__name__)
 
 class NoMoreResourceError(Exception):
     ...
@@ -225,7 +228,7 @@ class RetryAttemptContext:
         self.exception = exc_val
         # 检查发生的异常是否是可重试的类型
         if issubclass(exc_type, self._retryable_exceptions):
-            # 是可重试异常，抑制它，以便 for 循环可以继续
+            logger.debug(f"Retrying after {exc_type.__name__} when {exc_val}")
             return True
         
         # 不是可重试异常，不抑制它，让它传播出去
