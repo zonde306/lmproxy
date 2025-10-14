@@ -6,10 +6,8 @@ import cache
 
 logger = logging.getLogger(__name__)
 
-# 1. 宏注册表
 MACRO_REGISTRY: Dict[str, Callable] = {}
 
-# 2. @macro 装饰器
 def macro(name: str) -> Callable:
     """
     一个装饰器，用于将一个函数注册为指定名称的宏。
@@ -31,24 +29,14 @@ async def _execute_macro(macro_name: str, raw_content: str, /, **kwargs) -> str:
     func = MACRO_REGISTRY[macro_name]
 
     try:
-        # --- 参数解析更新 ---
-        # 使用正则表达式分割参数，忽略被转义的'|' (即 '\|')
-        # (?<!\\) 是一个负向先行断言，表示'|'前面不能是'\'
         raw_args_list = re.split(r'(?<!\\)\|', raw_content)
-        
-        # 第一个部分是宏名称，其余是参数
-        # 移除宏名称部分，我们已经有了
         raw_args = raw_args_list[1:]
-        
-        # 清理参数：去除首尾空格，并将转义字符还原
-        # '\|' -> '|'
-        # '\\' -> '\'
         args = [
             arg.strip().replace(r'\|', '|').replace(r'\\', '\\')
             for arg in raw_args
         ]
-        # --- 参数解析结束 ---
 
+        # inspect.signature with cache
         sig = cache.inspect_signature(func)
         params = list(sig.parameters.values())
         accepts_kwargs = any(
@@ -88,25 +76,39 @@ async def _execute_macro(macro_name: str, raw_content: str, /, **kwargs) -> str:
         logger.error(f"执行宏 '{macro_name}' 时发生错误：", exc_info=True)
         return f"{{{{{raw_content}}}}}"
 
+async def render(template_string: str, max_iterations: int = 9, /, **kwargs) -> str:
+    """
+    渲染模板字符串，通过迭代方式处理嵌套宏。
 
-async def render(template_string: str, /, **kwargs) -> str:
+    它会重复扫描字符串，每次都查找并替换最内层的宏，
+    直到没有更多的宏可以被替换或者达到最大迭代次数。
+
+    Args:
+        template_string: 包含宏的模板字符串。
+        max_iterations: 为防止无限循环而设置的最大渲染次数。
+        **kwargs: 传递给每个宏的上下文关键字参数。
+
+    Returns:
+        渲染完成的字符串。
     """
-    渲染模板字符串，查找并替换所有 {{...}} 宏。
-    """
-    pattern = re.compile(r"\{\{([^}]+)\}\}")
+    # 这个正则表达式只匹配最内层的宏，即 {{...}} 中不含 { 或 } 的部分
+    pattern = re.compile(r"\{\{([^}{]+)\}\}")
     
-    result_parts = []
-    last_end = 0
+    # 我们将对字符串进行多次处理，直到没有变化为止
+    current_template = template_string
+    
+    for i in range(max_iterations):
+        # 在当前模板中查找第一个最内层的宏
+        match = pattern.search(current_template)
+        
+        # 如果找不到任何匹配项，说明所有宏都已渲染，可以退出循环
+        if not match:
+            break
 
-    for match in pattern.finditer(template_string):
-        result_parts.append(template_string[last_end:match.start()])
-
-        # content现在是 "macroname|arg1|arg2..." 的完整字符串
+        # 提取宏的完整内容，例如 "macroname|arg1|arg2"
         full_content = match.group(1).strip()
         
-        # 提取宏名称
-        # 我们不能简单地用 split('|') 了，因为'|'可能被转义
-        # 先找到第一个未被转义的'|'的位置
+        # 提取宏名称 (处理参数中可能存在的转义'|')
         first_separator_match = re.search(r'(?<!\\)\|', full_content)
         if first_separator_match:
             macro_name = full_content[:first_separator_match.start()].strip()
@@ -115,10 +117,16 @@ async def render(template_string: str, /, **kwargs) -> str:
 
         # 异步执行宏并获取替换值
         replacement = await _execute_macro(macro_name, full_content, **kwargs)
-        result_parts.append(replacement)
-
-        last_end = match.end()
-
-    result_parts.append(template_string[last_end:])
-
-    return "".join(result_parts)
+        
+        # 将渲染后的内容替换回模板字符串
+        # 我们通过拼接来精确替换，避免 string.replace() 可能导致的意外替换
+        start, end = match.span()
+        current_template = current_template[:start] + replacement + current_template[end:]
+    else:
+        # 如果循环因达到 max_iterations 而结束，发出警告
+        logger.warning(
+            f"宏渲染在达到 {max_iterations} 次迭代上限后停止。"
+            "模板中可能仍有未解析的宏，或者存在无限循环。"
+        )
+    
+    return current_template

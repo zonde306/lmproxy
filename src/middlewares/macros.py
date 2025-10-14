@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 class MacroMiddleware(middleware.Middleware):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+        self._max_iterations : int = self.settings.get("max_iterations", 9)
         self._setup_macros(self.settings.get("macros", {}))
     
     def _setup_macros(self, defines: dict[str, str]):
@@ -31,8 +32,8 @@ class MacroMiddleware(middleware.Middleware):
                 continue
             
             if isinstance(message["content"], str):
-                message["content"] = await macro.render(message["content"], ctx=ctx)
+                message["content"] = await macro.render(message["content"], self._max_iterations, ctx=ctx)
             elif isinstance(message["content"], list):
                 for content_part in message["content"]:
                     if content_part["type"] == "text":
-                        content_part["text"] = await macro.render(content_part["text"], ctx=ctx)
+                        content_part["text"] = await macro.render(content_part["text"], self._max_iterations, ctx=ctx)
