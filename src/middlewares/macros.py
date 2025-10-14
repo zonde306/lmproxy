@@ -19,6 +19,8 @@ class MacroMiddleware(middleware.Middleware):
                 continue
             
             macro.macro(name)(impl)
+        
+        logger.debug(f"macros: {list(macro.MACRO_REGISTRY.keys())}")
 
     async def process_request(self, ctx: context.Context) -> None:
         if ctx.type != "text":
@@ -29,8 +31,8 @@ class MacroMiddleware(middleware.Middleware):
                 continue
             
             if isinstance(message["content"], str):
-                message["content"] = await macro.render(message["content"])
+                message["content"] = await macro.render(message["content"], ctx=ctx)
             elif isinstance(message["content"], list):
                 for content_part in message["content"]:
                     if content_part["type"] == "text":
-                        content_part["text"] = await macro.render(content_part["text"])
+                        content_part["text"] = await macro.render(content_part["text"], ctx=ctx)
