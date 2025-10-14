@@ -1,6 +1,7 @@
 import time
-import functools
 import asyncio
+import inspect
+import functools
 from typing import Any, Callable, Dict, Tuple
 
 def ttl_cache(seconds: int):
@@ -77,3 +78,5 @@ def ttl_cache(seconds: int):
         return wrapper
 
     return decorator
+
+inspect_signature = functools.lru_cache(maxsize=128)(inspect.signature)

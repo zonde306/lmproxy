@@ -102,10 +102,10 @@ class WorkerManager:
         workers = []
         for worker in self.settings.get("workers", []):
             if isinstance(worker, str):
-                if cls := loader.get_class(worker):
+                if cls := loader.get_object(worker):
                     workers.append([100, cls({}, proxies)])
             elif isinstance(worker, dict):
-                if cls := loader.get_class(worker.get("class")):
+                if cls := loader.get_object(worker.get("class")):
                     priority = worker.get("priority", 100)
                     workers.append([priority, cls(worker, proxies)])
 

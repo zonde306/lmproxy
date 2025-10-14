@@ -166,7 +166,7 @@ class ProxyFactory:
         if not cls:
             raise ValueError(f"代理管理器 '{name}' 未指定 class")
 
-        cls = loader.get_class(cls)
+        cls = loader.get_object(cls)
         if not cls:
             raise ValueError(f"代理管理器 '{name}' 未找到 class '{cls}'")
 

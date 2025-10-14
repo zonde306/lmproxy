@@ -60,12 +60,12 @@ class MiddlewareManager:
         middlewares = []
         for middleware in self.settings.get("middlewares", []):
             if isinstance(middleware, str):
-                if cls := loader.get_class(middleware):
+                if cls := loader.get_object(middleware):
                     middlewares.append([100, cls({}, self._engine)])
                 else:
                     logger.error(f"middleware {middleware} not found")
             elif isinstance(middleware, dict):
-                if cls := loader.get_class(middleware.get("class", "")):
+                if cls := loader.get_object(middleware.get("class", "")):
                     priority = middleware.get("priority", 100)
                     middlewares.append([priority, cls(middleware, self._engine)])
                 else:

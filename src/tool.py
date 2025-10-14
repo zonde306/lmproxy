@@ -4,6 +4,7 @@ import asyncio
 import inspect
 from enum import Enum
 from typing import Any, Callable, Dict, List, get_origin, get_args, Literal
+import cache
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +95,7 @@ def tooldef(func: Callable[..., Any]) -> Callable[..., Any]:
     装饰器：将函数转换为 OpenAI API Tools 格式，并注册到全局列表和可用函数字典。
     支持同步和异步函数。
     """
-    sig = inspect.signature(func)
+    sig = cache.inspect_signature(func)
     parameters = sig.parameters
 
     properties = {}

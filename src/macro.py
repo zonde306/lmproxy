@@ -2,6 +2,7 @@ import re
 import logging
 import inspect
 from typing import Dict, Callable
+import cache
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ def macro(name: str) -> Callable:
         return func
     return decorator
 
-async def _execute_macro(macro_name: str, raw_content: str) -> str:
+async def _execute_macro(macro_name: str, raw_content: str, /, **kwargs) -> str:
     """
     内部函数，用于查找、解析参数、绑定并执行宏。
     """
@@ -48,8 +49,17 @@ async def _execute_macro(macro_name: str, raw_content: str) -> str:
         ]
         # --- 参数解析结束 ---
 
-        sig = inspect.signature(func)
+        sig = cache.inspect_signature(func)
         params = list(sig.parameters.values())
+        accepts_kwargs = any(
+            param.kind == inspect.Parameter.VAR_KEYWORD 
+            for param in sig.parameters.values()
+        )
+        if not accepts_kwargs:
+            kwargs = {
+                k: v for k, v in kwargs.items() 
+                if k in sig.parameters
+            }
 
         bound_args = []
         for i, param in enumerate(params):
@@ -68,9 +78,9 @@ async def _execute_macro(macro_name: str, raw_content: str) -> str:
                 raise TypeError(f"宏 '{macro_name}' 缺少必需的位置参数: '{param.name}'")
 
         if inspect.iscoroutinefunction(func):
-            result = await func(*bound_args)
+            result = await func(*bound_args, **kwargs)
         else:
-            result = func(*bound_args)
+            result = func(*bound_args, **kwargs)
         
         return str(result)
 
@@ -79,7 +89,7 @@ async def _execute_macro(macro_name: str, raw_content: str) -> str:
         return f"{{{{{raw_content}}}}}"
 
 
-async def render(template_string: str) -> str:
+async def render(template_string: str, /, **kwargs) -> str:
     """
     渲染模板字符串，查找并替换所有 {{...}} 宏。
     """
@@ -104,7 +114,7 @@ async def render(template_string: str) -> str:
             macro_name = full_content.strip()
 
         # 异步执行宏并获取替换值
-        replacement = await _execute_macro(macro_name, full_content)
+        replacement = await _execute_macro(macro_name, full_content, **kwargs)
         result_parts.append(replacement)
 
         last_end = match.end()
