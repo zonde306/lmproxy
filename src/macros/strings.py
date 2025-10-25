@@ -27,3 +27,7 @@ def repeat(s: str, n: int = 1) -> str:
 @macro.macro("replace")
 def replace(s: str, old: str, new: str, count: int = -1) -> str:
     return s.replace(old, new, count)
+
+@macro.macro("reverse")
+def reverse(s: str) -> str:
+    return s[::-1]
