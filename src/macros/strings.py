@@ -19,3 +19,11 @@ def strip(s: str, chars: str = " \r\n\t") -> str:
 @macro.macro("substr")
 def substr(s: str, start: int = 0, end: int = -1) -> str:
     return s[start:end]
+
+@macro.macro("repeat")
+def repeat(s: str, n: int = 1) -> str:
+    return s * n
+
+@macro.macro("replace")
+def replace(s: str, old: str, new: str, count: int = -1) -> str:
+    return s.replace(old, new, count)
