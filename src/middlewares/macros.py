@@ -28,12 +28,10 @@ class MacroMiddleware(middleware.Middleware):
             return
         
         for message in ctx.body["messages"]:
-            if "{{" not in message["content"]:
-                continue
-            
             if isinstance(message["content"], str):
-                message["content"] = await macro.render(message["content"], self._max_iterations, ctx=ctx)
+                if "{{" in message["content"]:
+                    message["content"] = await macro.render(message["content"], self._max_iterations, ctx=ctx)
             elif isinstance(message["content"], list):
                 for content_part in message["content"]:
-                    if content_part["type"] == "text":
+                    if content_part["type"] == "text" and "{{" in content_part["text"]:
                         content_part["text"] = await macro.render(content_part["text"], self._max_iterations, ctx=ctx)

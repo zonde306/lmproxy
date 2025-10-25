@@ -25,16 +25,16 @@ def roll_dice(dice: str) -> int:
         modifier = 0
     
     num_dice, dice_size = dice.split("d", 2)
-    num_dice = int(num_dice)
+    num_dice = int(num_dice or 1)
     dice_size = int(dice_size)
     
     total = sum(random.randint(1, dice_size) for _ in range(num_dice))
     return total + modifier
 
 @macro.macro("sample")
-def sample(items: str, n: int = 1) -> str:
+def sample(items: str, n: int = 1, serp: str = "") -> str:
     """
     从逗号分隔的字符串中随机选择 n 个项目。
     """
     items = items.split(",")
-    return ",".join(random.sample(items, n))
+    return serp.join(random.sample(items, n))

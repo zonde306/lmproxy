@@ -28,6 +28,7 @@ class Insertion(typing.TypedDict):
     role: str
     content: str | list[ContentPart]
     before: bool
+    keywords: list[str] | str
 
 class InjectMiddleware(middleware.Middleware):
     async def process_request(self, ctx: context.Context) -> None:
@@ -41,6 +42,9 @@ class InjectMiddleware(middleware.Middleware):
         The 'before' flag in an insertion determines if the new content is prepended
         (for merges) or inserted before the target index (for new messages).
         """
+        contents = [ x["content"] for x in messages if isinstance(x.get("content", None), str) ]
+        insertions = [ x for x in insertions if self.matchKeywords(x.get("keywords", []), contents) ]
+
         if not insertions:
             return
 
@@ -121,3 +125,22 @@ class InjectMiddleware(middleware.Middleware):
         new_list = self._to_content_list(new_content)
         
         return new_list + existing_list if before else existing_list + new_list
+
+    def matchKeywords(self, keywords: list[str] | str, contents: str | list[str]) -> bool:
+        """
+        Checks if the content matches any of the keywords.
+        
+        Args:
+            keywords: A list of keywords or a single keyword.
+            content: The content to check.
+        """
+        if not keywords:
+            return True
+        
+        if isinstance(contents, list):
+            contents = "\n\n".join(contents)
+
+        if isinstance(keywords, str):
+            return keywords in contents
+        else:
+            return any(keyword in contents for keyword in keywords)
