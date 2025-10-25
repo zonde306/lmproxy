@@ -8,11 +8,15 @@ logger = logging.getLogger(__name__)
 
 MACRO_REGISTRY: Dict[str, Callable] = {}
 
-def macro(name: str) -> Callable:
+def macro(name: str = "") -> Callable:
     """
     一个装饰器，用于将一个函数注册为指定名称的宏。
     """
     def decorator(func: Callable) -> Callable:
+        nonlocal name
+        if not name:
+            name = func.__name__
+        
         if name in MACRO_REGISTRY:
             print(f"警告：宏 '{name}' 已被重定义。")
         MACRO_REGISTRY[name] = func
