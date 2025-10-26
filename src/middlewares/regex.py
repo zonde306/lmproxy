@@ -10,7 +10,7 @@ class RegexMiddleware(middleware.Middleware):
         if ctx.type != "text":
             return
         
-        size = ctx.body["messages"]
+        size = len(ctx.body["messages"])
         for i, message in enumerate(ctx.body["messages"]):
             if isinstance(message.get("content", None), str):
                 message["content"] = self.apply_regex(message["content"], message["role"], size - i - 1)

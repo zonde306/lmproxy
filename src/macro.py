@@ -7,6 +7,7 @@ import cache
 logger = logging.getLogger(__name__)
 
 MACRO_REGISTRY: Dict[str, Callable] = {}
+PARAM_SEPARATOR = "|"
 
 def macro(name: str = "") -> Callable:
     """
@@ -33,10 +34,10 @@ async def _execute_macro(macro_name: str, raw_content: str, /, **kwargs) -> str:
     func = MACRO_REGISTRY[macro_name]
 
     try:
-        raw_args_list = re.split(r'(?<!\\)\|', raw_content)
+        raw_args_list = re.split(rf'(?<!\\)\{PARAM_SEPARATOR}', raw_content)
         raw_args = raw_args_list[1:]
         args = [
-            arg.strip().replace(r'\|', '|').replace(r'\\', '\\')
+            arg.strip().replace(rf'\{PARAM_SEPARATOR}', PARAM_SEPARATOR).replace(r'\\', '\\')
             for arg in raw_args
         ]
 
@@ -113,7 +114,7 @@ async def render(template_string: str, max_iterations: int = 9, /, **kwargs) -> 
         full_content = match.group(1).strip()
         
         # 提取宏名称 (处理参数中可能存在的转义'|')
-        first_separator_match = re.search(r'(?<!\\)\|', full_content)
+        first_separator_match = re.search(rf'(?<!\\)\{PARAM_SEPARATOR}', full_content)
         if first_separator_match:
             macro_name = full_content[:first_separator_match.start()].strip()
         else:
