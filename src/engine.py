@@ -79,7 +79,7 @@ class Engine:
 
         try:
             await self.middleware.process_request(ctx)
-            logger.debug(ctx)
+            logger.debug(ctx.body["messages"])
 
             async for attempt in self.retries(ctx):
                 async with attempt:

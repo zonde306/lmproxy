@@ -7,7 +7,7 @@ import cache
 logger = logging.getLogger(__name__)
 
 MACRO_REGISTRY: Dict[str, Callable] = {}
-PARAM_SEPARATOR = "|"
+PARAM_SEPARATOR = ":"
 
 def macro(name: str = "") -> Callable:
     """
