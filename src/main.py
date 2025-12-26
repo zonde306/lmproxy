@@ -12,13 +12,13 @@ logger = logging.getLogger(__name__)
 app = blacksheep.Application()
 app.add_cors_policy("lmproxy", allow_methods="GET,POST,OPTIONS", allow_origins="*")
 
-engine = engine.Engine(conf.settings)
+_engine = engine.Engine(conf.settings)
 
 
 @blacksheep.get("/v1/models")
 @blacksheep.get("/models")
 async def models(request: blacksheep.Request) -> blacksheep.Response:
-    data = await engine.models()
+    data = await _engine.models()
     return blacksheep.json(
         {
             "object": "list",
@@ -51,7 +51,7 @@ async def models(request: blacksheep.Request) -> blacksheep.Response:
 @blacksheep.post("/chat/completions")
 async def chat_completions(request: blacksheep.Request) -> blacksheep.Response:
     payload = await request.json()
-    result = await engine.generate_text(
+    result = await _engine.generate_text(
         payload, {k.decode(): v.decode() for k, v in request.headers.items()}
     )
     if isinstance(result.body, dict) and not result.body.get("type", None):
@@ -132,4 +132,32 @@ async def chat_completions(request: blacksheep.Request) -> blacksheep.Response:
                 "worker": result.metadata.get("worker", "unknown"),
             }
         ),
+    )
+
+@blacksheep.post("/v1/embeddings")
+@blacksheep.post("/embeddings")
+async def embeddings(request: blacksheep.Request) -> blacksheep.Response:
+    payload = await request.json()
+    result = await _engine.generate_embedding(
+        payload, 
+        {k.decode(): v.decode() for k, v in request.headers.items()}
+    )
+
+    if isinstance(result.body, list):
+        return blacksheep.Response(
+            result.status_code,
+            list(result.headers.items()),
+            blacksheep.JSONContent(
+                {
+                    "object": "embedding",
+                    "embedding": result.body,
+                    "index": 0,
+                }
+            ),
+        )
+
+    return blacksheep.Response(
+        result.status_code,
+        list(result.headers.items()),
+        blacksheep.JSONContent(result.body),
     )

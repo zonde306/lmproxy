@@ -2,58 +2,15 @@ import copy
 import typing
 import dataclasses
 
-
-class Text(typing.TypedDict):
-    role: str | None = None
-    type: typing.Literal["text"] = "text"
-    content: str | None = None
-    reasoning_content: str | None = None
-    tool_calls: list[dict[str, typing.Any]] | None = None
-
-
-class Image(typing.TypedDict):
-    role: str | None = None
-    type: typing.Literal["image"] = "image"
-    content: bytes
-    mime_type: str
-
-
-class Embedding(typing.TypedDict):
-    role: str | None = None
-    type: typing.Literal["embedding"] = "embedding"
-    content: list[float]
-
-
-class Audio(typing.TypedDict):
-    role: str | None = None
-    type: typing.Literal["audio"] = "audio"
-    content: bytes
-    mime_type: str
-
-
-class Video(typing.TypedDict):
-    role: str | None = None
-    type: typing.Literal["video"] = "video"
-    content: bytes
-    mime_type: str
-
-
-class CountTokens(typing.TypedDict):
-    role: str | None = None
-    type: typing.Literal["count_tokens"] = "count_tokens"
-    content: int
-
-
-DeltaType = Text | Image | Embedding | Audio | Video
-
-
 @dataclasses.dataclass
 class Response:
     body: (
-        DeltaType
-        | typing.AsyncGenerator[DeltaType, None]
-        | CountTokens
+        "DeltaType"
+        | typing.AsyncGenerator["DeltaType", None]
+        | "CountTokens"
         | dict[str, typing.Any]
+        | "Embeding"
+        | list[float]
     )
     status_code: int = 200
     headers: dict[str, str] = dataclasses.field(default_factory=dict)
@@ -62,13 +19,14 @@ class Response:
 @dataclasses.dataclass
 class Context:
     headers: dict[str, str]
-    body: "ChatCompletionPayload"
+    body: "ChatCompletionPayload" | "EmbeddingPayload"
     type: typing.Literal["text", "image", "audio", "embedding", "video"]
     response: (
-        DeltaType
-        | typing.AsyncGenerator[DeltaType, None]
-        | CountTokens
+        "DeltaType"
+        | typing.AsyncGenerator["DeltaType", None]
+        | "CountTokens"
         | dict[str, typing.Any]
+        | "Embeding"
         | None
     ) = None
     status_code: int = 200
@@ -229,3 +187,54 @@ class ImageContentPart(typing.TypedDict):
 
 # 用户消息的内容可以是多种类型的组合
 UserContentPart = typing.Union[TextContentPart, ImageContentPart]
+
+class EmbeddingPayload(typing.TypedDict, total=False):
+    input: str | list[str]
+    model: str
+    user: str | None
+    dimensions: int | None
+
+
+class Text(typing.TypedDict):
+    role: str | None = None
+    type: typing.Literal["text"] = "text"
+    content: str | None = None
+    reasoning_content: str | None = None
+    tool_calls: list[dict[str, typing.Any]] | None = None
+
+
+class Image(typing.TypedDict):
+    role: str | None = None
+    type: typing.Literal["image"] = "image"
+    content: bytes
+    mime_type: str
+
+
+class Embedding(typing.TypedDict):
+    role: str | None = None
+    type: typing.Literal["embedding"] = "embedding"
+    content: list[float]
+
+
+class Audio(typing.TypedDict):
+    role: str | None = None
+    type: typing.Literal["audio"] = "audio"
+    content: bytes
+    mime_type: str
+
+
+class Video(typing.TypedDict):
+    role: str | None = None
+    type: typing.Literal["video"] = "video"
+    content: bytes
+    mime_type: str
+
+
+class CountTokens(typing.TypedDict):
+    embedding: list[float]
+
+class Embeding(typing.TypedDict):
+    type: typing.Literal["embedding"] = "embedding"
+    content: list[float]
+
+DeltaType = Text | Image | Embedding | Audio | Video
