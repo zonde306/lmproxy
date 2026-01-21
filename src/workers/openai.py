@@ -35,6 +35,9 @@ class OpenAiWorker(worker.Worker):
         self.completions_url: str = settings.get(
             "completions_url", "https://api.openai.com/v1/completions"
         )
+        self.embedding_url: str = settings.get(
+            "embedding_url", "https://api.openai.com/v1/embeddings"
+        )
         self.api_keys: list[str] = settings.get("api_keys", [])
         key = settings.get("api_key")
         if key is not None:
@@ -61,17 +64,22 @@ class OpenAiWorker(worker.Worker):
                 headers["Authorization"] = f"Bearer {api_key}"
 
             async with self.client() as client:
-                async with await client.get(self.models_url, headers=headers) as response:
-                    assert isinstance(response, rnet.Response)
-                    assert response.ok, (
-                        f"ERROR: {response.status} {await response.text()} of {self.models_url} when {api_key[:len(api_key) // 3]}"
-                    )
-                    data = await response.json()
-                    return [
-                        reverse_aliases.get(x["id"], x["id"])
-                        for x in data["data"]
-                        if not self._filters or any(map(lambda f: f.match(x["id"]), self._filters))
-                    ]
+                try:
+                    async with await client.get(self.models_url, headers=headers) as response:
+                        assert isinstance(response, rnet.Response)
+                        assert response.ok, (
+                            f"ERROR: {response.status} {await response.text()} of {self.models_url} when {api_key[:len(api_key) // 3]}"
+                        )
+                        data = await response.json()
+                        
+                        return [
+                            reverse_aliases.get(x["id"], x["id"])
+                            for x in data["data"]
+                            if not self._filters or any(map(lambda f: f.match(x["id"]), self._filters))
+                        ]
+                except Exception as e:
+                    print(f"ERROR: {e}")
+                    return []
 
     async def generate_text(self, context: context.Context) -> context.Text:
         if context.model not in self.available_models:
@@ -217,14 +225,15 @@ class OpenAiWorker(worker.Worker):
         headers: dict[str, str],
         body: dict[str, typing.Any],
         api_key: str,
-        streaming: bool,
+        streaming: bool | None,
         ctx: context.Context,
     ) -> None:
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
             logger.debug(f"Using API key: {api_key[:len(api_key) // 3]}...")
         
-        body["stream"] = streaming
+        if streaming is not None:
+            body["stream"] = streaming
 
     async def _parse_response(self, data: dict[str, typing.Any], ctx: context.Context) -> context.Text:
         if choices := data.get("choices", []):
@@ -237,3 +246,37 @@ class OpenAiWorker(worker.Worker):
             ctx.metadata["usage"] = usage
         
         return context.Text(type="text", content=text, reasoning_content=reasoning, tool_calls=tool_calls)
+    
+    async def generate_embedding(self, ctx: context.Context) -> context.Embedding:
+        if ctx.model not in self.available_models:
+            raise error.WorkerUnsupportedError(
+                f"Model {ctx.model} not available"
+            )
+        
+        async for attempt in self._resources.get_retying(
+            self.max_retries, 
+            self.wait_time, 
+            RETRY_EXCEPTIONS
+        ):
+            try:
+                async with attempt as api_key:
+                    if api_key is None:
+                        raise error.WorkerOverloadError("No API keys available")
+
+                    headers = self.headers.copy()
+                    body = ctx.payload(self.settings)
+                    await self._prepare_payload(headers, body, api_key, False, ctx)
+
+                    async with self.client() as client:
+                        async with await client.post(
+                            self.embedding_url, json=body, headers=headers
+                        ) as response:
+                            assert isinstance(response, rnet.Response)
+                            assert response.ok, (
+                                f"ERROR: {response.status} {await response.text()} of {self.completions_url}"
+                            )
+
+                            data = await response.json()
+                            return { "type": "embedding", "content": data.get("embedding", []) }
+            except resources.NoMoreResourceError as e:
+                raise error.WorkerOverloadError("No API keys available") from e

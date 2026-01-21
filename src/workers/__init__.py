@@ -5,6 +5,7 @@ from .longchat import LongchatWorker
 from .zai import ZaiWorker
 from .k2think import K2ThinkWorker
 from .chatbot import ChatbotWorker
+from .aistudio import AiStudioWorker
 
 __all__ = [
     "AkashWorker",
@@ -14,4 +15,5 @@ __all__ = [
     "ZaiWorker",
     "K2ThinkWorker",
     "ChatbotWorker",
+    "AiStudioWorker",
 ]

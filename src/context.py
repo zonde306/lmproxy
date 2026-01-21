@@ -19,7 +19,7 @@ class Response:
 @dataclasses.dataclass
 class Context:
     headers: dict[str, str]
-    body: "ChatCompletionPayload" | "EmbeddingPayload"
+    body: typing.Union["ChatCompletionPayload", "EmbeddingPayload"]
     type: typing.Literal["text", "image", "audio", "embedding", "video"]
     response: (
         "DeltaType"
@@ -169,6 +169,7 @@ class ChatCompletionPayload(typing.TypedDict, total=False):
     tools: typing.List[Tool]
     tool_choice: ToolChoice
     user: str
+    reasoning_effort: typing.Literal["none", "low", "high", "medium"]
 
 class TextContentPart(typing.TypedDict):
     """用户消息中的文本内容部分"""

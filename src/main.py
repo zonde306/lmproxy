@@ -92,7 +92,7 @@ async def chat_completions(request: blacksheep.Request) -> blacksheep.Response:
                         "choices": [{
                             "index": 0,
                             "delta": {
-                                "user": "assistant",
+                                "role": "assistant",
                             },
                             "finish_reason": "stop",
                         }],
